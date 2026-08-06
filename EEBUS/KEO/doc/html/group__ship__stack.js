@@ -1,0 +1,107 @@
+var group__ship__stack =
+[
+    [ "ProtocolConfig", "classkeo__ship_1_1_protocol_config.html", [
+      [ "ProtocolConfig", "classkeo__ship_1_1_protocol_config.html#a9e4321bd8c947d2aa1de9fbfa9292f2e", null ],
+      [ "~ProtocolConfig", "classkeo__ship_1_1_protocol_config.html#a21a8d4e0004592031fc8201e13b5e252", null ],
+      [ "getMaximumHelloAllowProlongationRequests", "classkeo__ship_1_1_protocol_config.html#a7be7a3cad86d25e7085b9f4e9d87b04f", null ],
+      [ "getMinimumHelloWaitForReadyForProlongation", "classkeo__ship_1_1_protocol_config.html#a94c1d8a8ac7c7e6a2a3ff73285a5d65e", null ],
+      [ "getTimeoutCmi", "classkeo__ship_1_1_protocol_config.html#a2912e2f88b78069300d14fbf1cf235d0", null ],
+      [ "getTimeoutHandshakeWaitForReady", "classkeo__ship_1_1_protocol_config.html#a633fb6f1d6ac8e33b5a6e9589f670be0", null ],
+      [ "getTimeoutHelloProlongationWaiting", "classkeo__ship_1_1_protocol_config.html#ad08b2fcd9f701d5a23000575f520fdc5", null ],
+      [ "getTimeoutHelloWaitForReady", "classkeo__ship_1_1_protocol_config.html#acec78d5fadc08795cbd9db2bff3b4358", null ],
+      [ "getTimeoutPinAskInit", "classkeo__ship_1_1_protocol_config.html#ae311455e5c83fd06f92b28ed7abea82e", null ],
+      [ "getTimeoutPinRecall", "classkeo__ship_1_1_protocol_config.html#ad16c804f0c8ec88d0c07ba1dd801264c", null ],
+      [ "getTimeoutPinState", "classkeo__ship_1_1_protocol_config.html#a7d1cc571555af3e5fb29796375591a60", null ],
+      [ "setMaximumHelloAllowProlongationRequests", "classkeo__ship_1_1_protocol_config.html#aaa658c03ee8d37e37d473a70ab009459", null ],
+      [ "setMinimumHelloWaitForReadyForProlongation", "classkeo__ship_1_1_protocol_config.html#a292d141f1df72be9e274382436efc927", null ],
+      [ "setTimeoutCmi", "classkeo__ship_1_1_protocol_config.html#a621c00934d5d63564d6f6a86dfef110b", null ],
+      [ "setTimeoutHandshakeWaitForReady", "classkeo__ship_1_1_protocol_config.html#a61702767c9b841705fc3b01b61ab7ddd", null ],
+      [ "setTimeoutHelloProlongationWaiting", "classkeo__ship_1_1_protocol_config.html#a852517b1e7d6d6387033f5c6f175b990", null ],
+      [ "setTimeoutHelloWaitForReady", "classkeo__ship_1_1_protocol_config.html#ae7583f4525ff42e2de3d1aeaf18fa53f", null ],
+      [ "setTimeoutPinAskInit", "classkeo__ship_1_1_protocol_config.html#a281f8181a0d57fc611a9e4157683747f", null ],
+      [ "setTimeoutPinRecall", "classkeo__ship_1_1_protocol_config.html#a79b7f6282c79b32cd5a80fe9ec4026bf", null ],
+      [ "setTimeoutPinState", "classkeo__ship_1_1_protocol_config.html#adba78371d39ba34640d433dd02911630", null ]
+    ] ],
+    [ "ShipNode", "classkeo__ship_1_1_ship_node.html", [
+      [ "ShipNode", "classkeo__ship_1_1_ship_node.html#a4f00a1d66d82d4cb4db8b921ee72d578", null ],
+      [ "~ShipNode", "classkeo__ship_1_1_ship_node.html#a4e473ad375cca6fa5d81fdd1a92522d8", null ],
+      [ "close", "classkeo__ship_1_1_ship_node.html#a9e0d91ab4458e1f2693a54e99d1e984d", null ],
+      [ "closeAnnounce", "classkeo__ship_1_1_ship_node.html#afa33f765f8830bec69e2d612ecb4897d", null ],
+      [ "closeAnnounceConfirm", "classkeo__ship_1_1_ship_node.html#a1e55d42f43a2e0123951787b12d34d9c", null ],
+      [ "getId", "classkeo__ship_1_1_ship_node.html#a9ce4d45a4090f81035addb20566ea80f", null ],
+      [ "getIpAddress", "classkeo__ship_1_1_ship_node.html#adc5296f5b3a18cbc9ebf9f2769d70f0b", null ],
+      [ "getIpPort", "classkeo__ship_1_1_ship_node.html#a36c720224e3c4ee0e515ad4f6b53c007", null ],
+      [ "getPinRequirement", "classkeo__ship_1_1_ship_node.html#af5a4c3eddd4e390c1c6ec0c02dde016d", null ],
+      [ "getSki", "classkeo__ship_1_1_ship_node.html#a5d82490930d460b23ec73ac7532ebd2b", null ],
+      [ "getTrustLevel", "classkeo__ship_1_1_ship_node.html#af1ab710f3f9ee7aa10bd1a4b76785d24", null ],
+      [ "isClient", "classkeo__ship_1_1_ship_node.html#a9547085af058118c731c684fad27ff84", null ],
+      [ "onClose", "classkeo__ship_1_1_ship_node.html#a59de464417e83033eb663913f0665c8e", null ],
+      [ "onCloseAnnounce", "classkeo__ship_1_1_ship_node.html#acdc483d41badc9632f09109dee46f034", null ],
+      [ "onCloseAnnounceConfirm", "classkeo__ship_1_1_ship_node.html#aacd04517ebb0879dd33bae51681df1c6", null ],
+      [ "onConnect", "classkeo__ship_1_1_ship_node.html#a2bd7957909feb285a5e891c23ada3b30", null ],
+      [ "onDataExchangeEnabled", "classkeo__ship_1_1_ship_node.html#aa5c7c8f066a632db15bbefaeacd84b99", null ],
+      [ "onMessage", "classkeo__ship_1_1_ship_node.html#aecb90dfe30e03141f667bf4f988e869b", null ],
+      [ "onPinRecallTimeout", "classkeo__ship_1_1_ship_node.html#ab2d97d13b033a926087bf6dd04752400", null ],
+      [ "onPinRequest", "classkeo__ship_1_1_ship_node.html#ac63bfe6223bde3c7d3627dd29ad0c6c4", null ],
+      [ "onPinWrong", "classkeo__ship_1_1_ship_node.html#a96af7bb401b728a30590ecf2edd7dda9", null ],
+      [ "onTrustCertificate", "classkeo__ship_1_1_ship_node.html#a22bb6a1cecba40acc3e88cd8b3bf10a9", null ],
+      [ "onValidatePin", "classkeo__ship_1_1_ship_node.html#ab2c07817efb74a5c31ea41a7e6d595b8", null ],
+      [ "sendMessage", "classkeo__ship_1_1_ship_node.html#a38a4547da9f8eaa41fb6148b794c6986", null ],
+      [ "setPin", "classkeo__ship_1_1_ship_node.html#a15d22a3173e94d15b96c0b49b164d6d2", null ],
+      [ "setPinPenaltyTime", "classkeo__ship_1_1_ship_node.html#a773fc3584cd262a8b19780ae52d3235f", null ],
+      [ "SocketConnectionHandler", "classkeo__ship_1_1_ship_node.html#a3debfa59024425fd9c97e57f453bf139", null ]
+    ] ],
+    [ "ShipNodeFactory", "classkeo__ship_1_1_ship_node_factory.html", [
+      [ "MinimalShipNode", "classkeo__ship_1_1_ship_node_factory_1_1_minimal_ship_node.html", [
+        [ "onClose", "classkeo__ship_1_1_ship_node_factory_1_1_minimal_ship_node.html#a8f3a2017cc8a3e4547b25faa508069b1", null ],
+        [ "onConnect", "classkeo__ship_1_1_ship_node_factory_1_1_minimal_ship_node.html#af3a84edd4ebe1671960a835f7545688b", null ]
+      ] ],
+      [ "~ShipNodeFactory", "classkeo__ship_1_1_ship_node_factory.html#a308e4b13882014f41f41b76e0749215f", null ],
+      [ "createShipNode", "classkeo__ship_1_1_ship_node_factory.html#a6e51df9448852606da2acad3be6a9825", null ]
+    ] ],
+    [ "ShipStack", "classkeo__ship_1_1_ship_stack.html", [
+      [ "ShipStack", "classkeo__ship_1_1_ship_stack.html#accd88935d0cace2f10403ef9f69ad377", null ],
+      [ "~ShipStack", "classkeo__ship_1_1_ship_stack.html#a9af57b27050c364e36e0cf5b2a1b27c3", null ],
+      [ "connectTo", "classkeo__ship_1_1_ship_stack.html#aec957abefb4b74fcafaa13d0dfb4a73e", null ],
+      [ "getSki", "classkeo__ship_1_1_ship_stack.html#aa2c30bbabafa07c1975f2a8207b1dfe4", null ],
+      [ "initialize", "classkeo__ship_1_1_ship_stack.html#ab2a2a3ee675ce30e5f219a79ad5aa81f", null ],
+      [ "initializeServer", "classkeo__ship_1_1_ship_stack.html#a70c8abb4c4b9f96a8508da86d4760479", null ],
+      [ "isConnected", "classkeo__ship_1_1_ship_stack.html#a32be9244e3969b10b236b8b753f637ed", null ],
+      [ "isServerStarted", "classkeo__ship_1_1_ship_stack.html#aca1c6db28001c949bc740b97a0181ce3", null ],
+      [ "serverJoin", "classkeo__ship_1_1_ship_stack.html#ae7630d9de2c1475e67502cddd98dd44b", null ],
+      [ "setRejectConnections", "classkeo__ship_1_1_ship_stack.html#afdd95f7609dc93cdf518668606f6c8a7", null ],
+      [ "shutdown", "classkeo__ship_1_1_ship_stack.html#a6348bb4f88845827184cc323883a253c", null ],
+      [ "startServer", "classkeo__ship_1_1_ship_stack.html#a6d5e561a10855196d358fb020acce1b1", null ],
+      [ "stopServer", "classkeo__ship_1_1_ship_stack.html#acb6641183886f35125532a2b67a3790d", null ]
+    ] ],
+    [ "ShipStackConfiguration", "classkeo__ship_1_1_ship_stack_configuration.html", [
+      [ "ShipStackConfiguration", "classkeo__ship_1_1_ship_stack_configuration.html#a915d963a6fe54aebe1cc04aad8d4be27", null ],
+      [ "getPin", "classkeo__ship_1_1_ship_stack_configuration.html#a7899924dfead52dc8581822291f78aa8", null ],
+      [ "getPinRequirement", "classkeo__ship_1_1_ship_stack_configuration.html#adc85aa8076c39d92e3393ed295f87d13", null ],
+      [ "getProtocolConfig", "classkeo__ship_1_1_ship_stack_configuration.html#a7e6e5a0a7de60c9df85bbcad631059a6", null ],
+      [ "getSessionCacheSize", "classkeo__ship_1_1_ship_stack_configuration.html#a739451c4a028cbf513002b85ff248637", null ],
+      [ "getShipId", "classkeo__ship_1_1_ship_stack_configuration.html#a4a03ae777c6218b82f36551a4ed3dc28", null ],
+      [ "setPin", "classkeo__ship_1_1_ship_stack_configuration.html#a53a2151b71d3c75cab726f7193d62e37", null ],
+      [ "setPinRequirement", "classkeo__ship_1_1_ship_stack_configuration.html#a2e70ea87b014fb70d45a6235e89eb5f2", null ],
+      [ "setProtocolConfig", "classkeo__ship_1_1_ship_stack_configuration.html#a96a14f7a377c2721245b7649e3c7333c", null ],
+      [ "setSessionCacheSize", "classkeo__ship_1_1_ship_stack_configuration.html#a3e414d46168d16ef4a6803b778e8149d", null ],
+      [ "setShipId", "classkeo__ship_1_1_ship_stack_configuration.html#af19827782d90f60f587c94810c1022a7", null ]
+    ] ],
+    [ "ShipNodeConst", "group__ship__stack.html#gac453f529372956c75def0810de16b046", null ],
+    [ "ShipNodeConstPtr", "group__ship__stack.html#ga5b7e7059a384974a68faa5e13cd65e3f", null ],
+    [ "ShipNodeFactoryConst", "group__ship__stack.html#ga3b531ca838ab0fb434b378bf15b13781", null ],
+    [ "ShipNodeFactoryConstPtr", "group__ship__stack.html#ga6a147641d1844c7a9d904a19453b2bcc", null ],
+    [ "ShipNodeFactoryPtr", "group__ship__stack.html#gac9a2b687d0a31d4f1357a9e5b5383738", null ],
+    [ "ShipNodePtr", "group__ship__stack.html#ga8495d839619ab1234af2fdfbf2258471", null ],
+    [ "PinRequirement", "group__ship__stack.html#ga53cee22c6836494c824ff6f03ff2cd34", [
+      [ "PIN_NONE", "group__ship__stack.html#gga53cee22c6836494c824ff6f03ff2cd34ac847099a32f3e2f68702308bddf30c38", null ],
+      [ "PIN_OK", "group__ship__stack.html#gga53cee22c6836494c824ff6f03ff2cd34ade2707f09bb5f7f97b0525e2da6baab2", null ],
+      [ "PIN_OPTIONAL", "group__ship__stack.html#gga53cee22c6836494c824ff6f03ff2cd34a14bce80d90f374c4b9e074ab15d807d2", null ],
+      [ "PIN_REQUIRED", "group__ship__stack.html#gga53cee22c6836494c824ff6f03ff2cd34a653f494aa1f2096f00167571f630eb54", null ]
+    ] ],
+    [ "ShipStackResult", "group__ship__stack.html#ga5139873a06cd71ab96e9596edb4a0f3b", [
+      [ "StackResultOk", "group__ship__stack.html#gga5139873a06cd71ab96e9596edb4a0f3ba1a37d7bc0ce1218857dcb99167932477", null ],
+      [ "StackResultGeneralError", "group__ship__stack.html#gga5139873a06cd71ab96e9596edb4a0f3ba2c0712ff9ac9f2b31245bffe2f914ce0", null ],
+      [ "StackResultSkiError", "group__ship__stack.html#gga5139873a06cd71ab96e9596edb4a0f3bac10a416ed04cdd2dd46f46280aa6d0a9", null ]
+    ] ]
+];

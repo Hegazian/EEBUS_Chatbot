@@ -1,0 +1,2 @@
+
+set(MEMORYCHECK_SUPPRESSIONS_FILE "${CMAKE_BINARY_DIR}/valgrind.supp")

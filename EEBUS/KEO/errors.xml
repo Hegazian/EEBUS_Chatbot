@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results>
+    <error file="src/keo_ship_stack/messageexchange/src/internal/ConnectionStateHandler.cpp" line="793" id="assertWithSideEffect" severity="style" msg="Assert statement calls a function which may have desired side effects: &apos;isInitialized&apos;."/>
+    <error file="src/keo_ship_stack/messageexchange/tests/ConnectionStateHandlerTimerTest.cpp" line="64" id="uninitMemberVar" severity="style" msg="Member variable &apos;ConnectionStateHandlerTimerTest::m_pConnectionStateHandler&apos; is not initialized in the constructor."/>
+    <error file="src/keo_ship_stack/messageexchange/tests/ConnectionStateHandlerTimerTest.cpp" line="64" id="uninitMemberVar" severity="style" msg="Member variable &apos;ConnectionStateHandlerTimerTest::m_pNodeInfo&apos; is not initialized in the constructor."/>
+    <error file="src/keo_ship_stack/messageexchange/tests/ConnectionStateHandlerTimerTest.cpp" line="64" id="uninitMemberVar" severity="style" msg="Member variable &apos;ConnectionStateHandlerTimerTest::m_pStateInfo&apos; is not initialized in the constructor."/>
+    <error file="src/keo_ship_stack/transformer/JsonParser.cpp" line="101" id="invalidPointer" severity="error" msg="Invalid pointer &apos;parsedData&apos; after resize()."/>
+    <error file="src/keo_util/KEToolsLibrary/src/KEByteArray.cpp" line="83" id="moduloAlwaysTrueFalse" severity="style" msg="Comparison of modulo result is predetermined, because it is always less than 1."/>
+    <error file="src/keo_util/KEToolsLibrary/src/KEEventLoop.cpp" line="86" id="memleak" severity="error" msg="Memory leak: timer"/>
+</results>

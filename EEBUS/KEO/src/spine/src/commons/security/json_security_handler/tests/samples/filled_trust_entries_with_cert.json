@@ -1,0 +1,11 @@
+{
+    "TestGateway.imaginarySKI" : {
+        "UserTrust" : 5,
+        "Certificate" : "ffee003acdaa"
+    },
+    
+    "TestGateway.anotherImaginarySKI" : {
+        "UserTrust" : 42,
+        "Certificate" : "badeaffe"
+    }
+}

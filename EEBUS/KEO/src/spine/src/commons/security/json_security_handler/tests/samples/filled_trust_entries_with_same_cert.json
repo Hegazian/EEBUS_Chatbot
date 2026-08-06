@@ -1,0 +1,11 @@
+{
+    "TestGateway.imaginarySKI" : {
+        "TrustLevel" : 5,
+        "Certificate" : "ffee003acdaa"
+    },
+    
+    "TestGateway.anotherImaginarySKIWithTheSameCertificate" : {
+        "TrustLevel" : 42,
+        "Certificate" : "ffee003acdaa"
+    }
+}

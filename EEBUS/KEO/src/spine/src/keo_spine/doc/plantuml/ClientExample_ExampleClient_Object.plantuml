@@ -1,0 +1,14 @@
+@startuml
+ object "SmartDevice" as SmartDevice
+ object "Entity 0" as Entity0
+ object "Entity 1" as Entity1
+ object "PrimaryNodeManagementFeature" as PrimaryNodeManagementFeature
+ object "DeviceClassificationFeature" as DeviceClassificationFeature
+ object "MeasurementClientFeature" as MeasurementClientFeature
+ Entity0 *-- PrimaryNodeManagementFeature
+ Entity0 o-- DeviceClassificationFeature
+ Entity1 o-- MeasurementClientFeature
+ Entity1 o-- MyFancyFeature
+ SmartDevice *-- Entity0
+ SmartDevice o-- Entity1
+ @enduml

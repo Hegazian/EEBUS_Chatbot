@@ -1,0 +1,10 @@
+/**
+ * @namespace keo_util This namespace contains utility classes.
+ */
+
+/** 
+ * @defgroup util Util
+ * The module contains a collection of helper functions
+ */
+
+

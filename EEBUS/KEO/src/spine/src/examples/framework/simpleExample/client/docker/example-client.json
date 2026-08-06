@@ -1,0 +1,20 @@
+{
+   "DeviceConfiguration" : {
+      "ConnectionHost" : "0.0.0.0",
+      "ConnectionPort" : 4711,
+      "DeviceBrand" : "keo",
+      "DeviceModel" : "example",
+      "DeviceType" : "client",
+      "Domain" : "local",
+      "EEBusDevice" : "d:_i:47859_keo-example-client",
+      "FileNameKeyStore" : "/tmp/keo-example-client.nvstorage",
+      "FileNameOwnCertificateDER" : "/tmp/secp256r1CertDER.bin",
+      "FileNameOwnPrivateKeyDER" : "/tmp/secp256r1KeyDER.bin",
+      "FileNameTrustStore" : "",
+      "FileNameTrustStoreParams" : "",
+      "InstanceName" : "FrameworkExampleClient",
+      "KeyStorePassword" : "",
+      "ShipId" : "FrameworkExampleClient",
+      "TrustStorePassword" : ""
+   }
+}

@@ -1,0 +1,181 @@
+/*
+ *     Copyright KEO GmbH 2016 - All rights reserved!
+ *
+ *     This software is protected by the inclusion of the above copyright notice.
+ *     This software may not be provided or otherwise made available to, or used
+ *     by, any other person. No title to or ownership of the software is hereby
+ *     transferred. The information contained in this document is considered the
+ *     @b confidential and @b proprietary information of KEO GmbH
+ *     and may not be disclosed or discussed with anyone who is not employed by
+ *     KEO GmbH, unless the individual or company
+ *     - has an express need to know such information, and
+ *     - disclosure of information is subject to the terms of a duly
+ *     executed "Confidentiality and Non-Disclosure Agreement" between
+ *     KEO GmbH and the individual or company.
+ */
+/**
+ *     @brief      SmeConnectionState
+ *
+ *     @par        States
+ *
+ *
+ *     @author     KEO GmbH 2016 @n
+ *                 All rights reserved !
+ */
+
+#ifndef KEO_SHIP_STACK_MESSAGEEXCHANGE_SRC_INTERNAL_SME_CONNECTION_STATE_H_
+#define KEO_SHIP_STACK_MESSAGEEXCHANGE_SRC_INTERNAL_SME_CONNECTION_STATE_H_
+
+/* ****************************************************************************** *
+ *  standard header files                                                         *
+ * ****************************************************************************** */
+#include "SmeConnectionStateOverview.h"
+
+/* ****************************************************************************** *
+ *  keo_spine header files                                                          *
+ * ****************************************************************************** */
+
+/* ****************************************************************************** *
+ *  defines                                                                       *
+ * ****************************************************************************** */
+
+/* ****************************************************************************** *
+ *  types                                                                         *
+ * ****************************************************************************** */
+
+/* ****************************************************************************** *
+ *  class definition                                                              *
+ * ****************************************************************************** */
+
+namespace keo_ship
+{
+
+/*
+* Bit shifting for SmeConnectionState
+*    20-28 - State overwiew number
+*     0- 9 - State number
+*/
+
+const char SME_STATUS_TYPE_SHIFT = 8;
+
+/**
+ * List of all possible states
+ */
+
+typedef enum {
+    STATE_UNDEFINED = 0,
+    // Connection Mode Initialisation (CMI) state
+    SME_SUBSTATE_CMI_INIT_FIRST = (1 << SME_STATUS_TYPE_SHIFT),
+    TMP_CMI_INIT_FIRST = SME_SUBSTATE_CMI_INIT_FIRST - 1,
+#define MACRO_CMI_STATE(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_CMI_STATE
+    SME_SUBSTATE_CMI_INIT_LAST,
+
+    // Connection state "Hello"
+    SME_SUBSTATE_HELLO_STATE_FIRST = SME_SUBSTATE_CMI_INIT_LAST,
+    TMP_SME_HELLO_STATE_FIRST = SME_SUBSTATE_HELLO_STATE_FIRST - 1,
+#define MACRO_SME_STATE_HELLO(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_SME_STATE_HELLO
+    SME_SUBSTATE_HELLO_STATE_LAST,
+
+    // Connection state "Protocol handshake"
+    SME_SUBSTATE_PROT_H_STATE_FIRST = SME_SUBSTATE_HELLO_STATE_LAST,
+    TMP_SME_PROT_H_STATE_SERVER_FIRST = SME_SUBSTATE_PROT_H_STATE_FIRST - 1,
+#define MACRO_SME_PROT_H_STATE(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_SME_PROT_H_STATE
+    SME_SUBSTATE_PROT_H_STATE_LAST,
+
+    // Connection state "PIN verification"
+    SME_SUBSTATE_PIN_STATE_FIRST = SME_SUBSTATE_PROT_H_STATE_LAST,
+    TMP_SME_PIN_STATE_FIRST = SME_SUBSTATE_PIN_STATE_FIRST - 1,
+#define MACRO_SME_PIN_STATE(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_SME_PIN_STATE
+    SME_SUBSTATE_PIN_STATE_LAST,
+
+    // Access methods
+    SME_SUBSTATE_ACCESS_METHODS_FIRST = SME_SUBSTATE_PIN_STATE_LAST,
+    TMP_STATE_ACCESS_METHODS = SME_SUBSTATE_ACCESS_METHODS_FIRST - 1,
+#define MACRO_ACCESS_METHODS(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_ACCESS_METHODS
+    SME_SUBSTATE_ACCESS_METHODS_LAST,
+
+    // Close connection
+    SME_SUBSTATE_CONNECTION_TERMINATION_FIRST = SME_SUBSTATE_ACCESS_METHODS_LAST,
+    TMP_STATE_CONNECTION_TERMINATION = SME_SUBSTATE_CONNECTION_TERMINATION_FIRST - 1,
+#define MACRO_STATE_CONNECTION_TERMINATION(x, y) _##x, x = _##x | (y << SME_STATUS_TYPE_SHIFT), __##x = _##x,
+#include "SmeConnectionState.h"
+#undef MACRO_STATE_CONNECTION_TERMINATION
+    SME_SUBSTATE_CONNECTION_TERMINATION_LAST,
+
+    SME_SUBSTATE_LAST,
+    SME_SUBSTATE_UNDEFINED = SME_SUBSTATE_LAST
+
+} SmeConnectionState;
+
+} // namespace keo_ship
+#endif
+
+#ifdef MACRO_CMI_STATE
+MACRO_CMI_STATE(CMI_INIT_STATE, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+MACRO_CMI_STATE(CMI_STATE_CLIENT_SEND, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+MACRO_CMI_STATE(CMI_STATE_CLIENT_WAIT, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+MACRO_CMI_STATE(CMI_STATE_CLIENT_EVALUATE, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+MACRO_CMI_STATE(CMI_STATE_SERVER_WAIT, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+MACRO_CMI_STATE(CMI_STATE_SERVER_EVALUATE, STATE_OVERVIEW_CONNECTION_MODE_INITIALISATION)
+#endif
+
+#ifdef MACRO_SME_STATE_HELLO
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_READY_INIT, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_READY_LISTEN, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_READY_TIMEOUT, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_PENDING_INIT, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_PENDING_LISTEN, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_STATE_PENDING_TIMEOUT, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+MACRO_SME_STATE_HELLO(SME_HELLO_OK, STATE_OVERVIEW_CONNECTION_STATE_HELLO)
+#endif
+
+#ifdef MACRO_SME_PROT_H_STATE
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_SERVER_INIT, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_SERVER_LISTEN_PROPOSAL, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_SERVER_LISTEN_CONFIRM, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_SERVER_OK, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_CLIENT_INIT, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_CLIENT_LISTEN_CHOICE, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_CLIENT_OK, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+MACRO_SME_PROT_H_STATE(SME_PROT_H_STATE_TIMEOUT, STATE_OVERVIEW_CONNECTION_STATE_PROTOCOL_HANDSHAKE)
+#endif
+
+#ifdef MACRO_SME_PIN_STATE
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_INIT, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_LISTEN, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_ERROR, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_BUSY_INIT, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_BUSY_WAIT, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_CHECK_OK, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_ASK_INIT, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_ASK_PROCESS, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_ASK_RESTRICTED_OK, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+MACRO_SME_PIN_STATE(SME_PIN_STATE_ASK_OK, STATE_OVERVIEW_CONNECTION_PIN_VERIFICATION)
+#endif
+
+#ifdef MACRO_ACCESS_METHODS
+MACRO_ACCESS_METHODS(STATE_ACCESS_METHODS_REQUEST, STATE_OVERVIEW_ACCESS_METHODS)
+MACRO_ACCESS_METHODS(STATE_ACCESS_METHODS, STATE_OVERVIEW_ACCESS_METHODS)
+#endif
+
+#ifdef MACRO_STATE_CONNECTION_TERMINATION
+MACRO_STATE_CONNECTION_TERMINATION(STATE_RUNNING, STATE_OVERVIEW_CLOSE_CONNECTION)
+MACRO_STATE_CONNECTION_TERMINATION(STATE_ANNOUNCE_CLOSE_CONNECTION, STATE_OVERVIEW_CLOSE_CONNECTION)
+MACRO_STATE_CONNECTION_TERMINATION(STATE_WAIT_CONFIRM_CLOSE_CONNECTION, STATE_OVERVIEW_CLOSE_CONNECTION)
+MACRO_STATE_CONNECTION_TERMINATION(STATE_WAIT_CLOSE_CONNECTION, STATE_OVERVIEW_CLOSE_CONNECTION)
+MACRO_STATE_CONNECTION_TERMINATION(STATE_CLOSE_CONNECTION, STATE_OVERVIEW_CLOSE_CONNECTION)
+#endif
+
+/** @}
+ * end of file
+ */

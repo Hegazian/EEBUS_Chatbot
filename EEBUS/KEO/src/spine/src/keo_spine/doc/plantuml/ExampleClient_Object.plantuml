@@ -1,0 +1,20 @@
+ * @startuml
+ * object "SmartDeviceApplication" as application
+ * object "Configuration" as config
+ * object "Distributor" as distributor
+ * object "SmartDevice" as device
+ * object "Entity 0" as entity0
+ * object "Entity 1" as entity1
+ * object "PrimaryNodeManagementFeature" as PNMFeature
+ * object "DeviceClassificationFeature" as DCFeature
+ * object "MeasurementClientFeature" as MCFeature
+ * entity0 *-- PNMFeature
+ * entity0 o-- DCFeature
+ * entity1 o-- MCFeature
+ * device *-- entity0
+ * device o-- entity1
+ * application *-- device 
+ * application *-- distributor
+ * application *-- config
+ * @enduml
+

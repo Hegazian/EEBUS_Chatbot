@@ -1,0 +1,41 @@
+/** @defgroup examples_framework SPINE application examples
+ *
+ * This module offers example applications that demonstrate how to use the KEO SPINE API. 
+ *
+ * The examples are a good starting point to accelerate the process of understanding SPINE fundamentals and how to use the KEO SPINE API.
+ *
+ * @ingroup examples
+ */
+
+/** @defgroup framework_example_client KEO SPINE client application example
+ *
+ * This module offers a KEO SPINE client application example.
+ *
+ * @ingroup examples_framework
+ */
+ 
+/** @defgroup framework_example_server KEO SPINE server application example
+ *
+ * This module offers the KEO SPINE server application example.
+ *
+ * @ingroup examples_framework
+ */
+
+/** @defgroup examples_stack SHIP Stack example
+ *
+ * This module offers a KEO SHIP Stack example.
+ *
+ * @ingroup examples
+ */
+
+/** @defgroup examples_security Security Handler example
+ *
+ * This module offers an example implementation of the SHIP Security Handler interface.
+ *
+ * This implementation is not suitable for use in production. It is only meant to show
+ * one simple way of implementing the methods from the interface @ref keo_ship::ShipSecurityHandler.
+ *
+ * @see keo_ship::ShipSecurityHandler
+ *
+ * @ingroup examples
+ */

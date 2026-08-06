@@ -1,0 +1,32 @@
+# Python Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment & Credentials
+.env
+.env.local
+
+# Vector Database & Caches
+eebus_chroma_db/
+.doc_hashes.json
+.model_cache.json
+
+# Python Cache & Build
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+
+# Logs & Temporary Files
+*.log
+eebus_chatbot.log
+
+# IDE & Editor Settings
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

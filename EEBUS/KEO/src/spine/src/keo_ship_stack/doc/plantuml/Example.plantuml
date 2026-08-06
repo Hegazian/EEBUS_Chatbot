@@ -1,0 +1,63 @@
+ * @startuml
+ * () "ApplicationInterface" as appInterface
+ * () "ShipControlInterface"
+ * () "ShipNodeCreator"
+ *
+ * [application] as "SmartDeviceApplication"
+ * [shipconnectionhandler] as "ShipConnectionHandler"
+ * [shipDriver] as "ShipDriver"
+ * [ShipConnectionCreator]
+ *
+ * note top of [shipconnectionhandler]
+ *  ShipConnectionHandler is a container for Transport connections.
+ * end note
+ *
+ * note top of [ShipConnectionCreator]
+ *  ShipConnectionCreator is a factory to create ShipConnections.
+ *  The created ShipConnections are initialized with
+ *  the connectionHandler(TransportConnectionHandlerInterface)
+ *  and the shipListener(ShipControlInterface).
+ * end note
+ *
+ * note bottom of [ShipNodeCreator]
+ *  The ShipDriver uses the ShipConnectionCreator
+ *  to produce new ShipConnections.
+ * end note
+ *
+ * note top of TransportConnectionHandlerInterface
+ *  The ShipConnection adds itself to the ShipConnectionHandler
+ *  if the connection was established
+ *  The ShipConnection removes itself from the ShipConnectionHandler
+ *  if the connection was closed
+ *  to produce new ShipConnections.
+ * end note
+ *
+ * note top of TransportConnectionInterface
+ *  getId(),
+ *  sendMessage(),
+ *  closeConnection()
+ * end note
+ *
+ * note top of TransportConnectionHandlerInterface
+ *  addConnevction(),
+ *  removeConnection(),
+ *  closeAll()
+ *  receivedDatagram()()
+ * end note
+ *
+ * [ShipConnection] ..> TransportConnectionHandlerInterface
+ * [ShipConnection] ..> ShipControlInterface
+ *
+ * [ShipConnectionCreator] -- ShipNodeCreator
+ *
+ * [shipDriver] -- ShipControlInterface
+ * [shipDriver] ..> ShipNodeCreator: use
+ *
+ * [shipconnectionhandler] -up- TransportConnectionHandlerInterface
+ * [shipconnectionhandler] -up-  TransportConnectionInterface
+ * [shipconnectionhandler] ..> DistributorConnectionInterface: use
+ *
+ * [application] -- appInterface
+ *
+ * @enduml
+

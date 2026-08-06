@@ -1,0 +1,26 @@
+{
+    "NAME"                      : "keo_spine_datagram",
+    "MAINTAINERS"               : "mesmer@kellendonk.de himmer@kellendonk.de",
+    "CMAKE_ROOT"                : "KEO_SPINE_DATAGRAM_ROOT",
+    "RUN_TESTS"                 : "True",
+    "CMAKE_EXTRA_ARGS"          : "-DCREATE_DOC=ON",
+    "CREATE_VERIFY_JOB"         : "True",
+    "CREATE_TEST_JOB"           : "True",
+    "XSD_VERSION"               : "1.1.1",
+    "TOOLCHAINS"                : "amd64_xenial",
+    "VERSION"                   : "12.0.2",
+    "DEPENDS"                   : [
+        {
+            "name"    : "keo_cmake_modules",
+            "version" : "3.3.0"
+        },
+        {
+            "name"    : "keo_spine_databinder",
+            "version" : "10.0.1"
+        },
+        {
+            "name"    : "gtest",
+            "version" : "1.7.3"
+        }
+    ]
+}

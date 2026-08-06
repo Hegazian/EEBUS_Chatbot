@@ -1,0 +1,45 @@
+@startuml
+participant Application
+participant ShipStack
+participant ShipControl
+participant ShipConnection
+participant "TransportConnectionHandler" as connectionHandler
+participant "connectionHandlerListener\n(Distributor)" as connectionHandlerListener
+participant "mainDevice\n(SmartDevice)" as mainDevice
+Application -> ShipControl: initialize(connectionHandler)
+Application <-- ShipControl
+ShipStack -> ShipControl: requestNodeDisconnect()
+	ShipControl -> ShipConnection: onClose()
+		ShipConnection -> connectionHandler: removeConnection()\n(TransportConnectionHandlerInterface)
+	                connectionHandler -> connectionHandlerListener: removeDevice()\n(ConnectionToDistributorInterface)
+			connectionHandlerListener -> mainDevice: removeDevice()\n(DistributorToDeviceInterface)
+			mainDevice->mainDevice: add PrimaryNodeManagementEvent(CLOSE_NODE_EVENT)
+			activate mainDevice
+			connectionHandlerListener <-- mainDevice
+	                connectionHandler <-- connectionHandlerListener
+		ShipConnection <-- connectionHandler
+	ShipControl <-- ShipConnection
+ShipStack <-- ShipControl
+				mainDevice -> primaryNodeManagementFeature:closeNodeEvent()
+				primaryNodeManagementFeature -> primaryNodeManagementFeature: removePendingDatagramUsingMsgCounter()
+
+
+										primaryNodeManagementFeature -> mainDevice : removeDevice(id)\nSendDatagramListener
+										activate mainDevice
+
+										note over mainDevice
+											The deviceHandler removes a  ConnectedDevice
+										end note
+										mainDevice->mainDevice: deviceHandler::removeDevice(id)
+										
+										mainDevice -> Application: disconnected(connectedDevice)\n(DeviceCallbackInterface)
+										mainDevice <-- Application
+										
+										mainDevice-->primaryNodeManagementFeature
+										deactivate mainDevice
+
+
+				mainDevice <-- primaryNodeManagementFeature
+                                deactivate mainDevice
+@enduml
+

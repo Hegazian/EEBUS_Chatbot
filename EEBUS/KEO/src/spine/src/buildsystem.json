@@ -1,0 +1,32 @@
+{
+    "NAME"                      : "keo_spine",
+    "MAINTAINERS"               : "himmer@keo-connectivity.de wulfheide@keo-connectivity.de",
+    "CMAKE_ROOT"                : "KEO_SPINE_ROOT",
+    "RUN_TESTS"                 : "True",
+    "GERRIT_TRIGGER_MANUAL"     : "False",
+    "DISABLED_DOCKER_TARGETS"   : "keo_framework_example_simple_client keo_framework_example_simple_server",
+    "CMAKE_EXTRA_ARGS"          : "-DCREATE_GOOGLETEST=ON -DCREATE_DOC=ON -DCREATE_PLANTUML=ON",
+    "CREATE_VERIFY_JOB"         : "True",
+    "CREATE_TEST_JOB"           : "True",
+    "XSD_VERSION"               : "1.1.1",
+    "TOOLCHAINS"                : "amd64_xenial rpi3",
+    "VERSION"                   : "12.0.3",
+    "DEPENDS"                   : [
+        {
+            "name"    : "keo_cmake_modules",
+            "version" : "3.3.0"
+        },
+        {
+            "name"    : "gtest",
+            "version" : "1.7.3"
+        },
+        {
+            "name"    : "keo_spine_datagram",
+            "version" : "12.0.2"
+        },
+        {
+            "name"    : "keo_ship_databinder",
+            "version" : "5.2.0"
+        }
+    ]
+}

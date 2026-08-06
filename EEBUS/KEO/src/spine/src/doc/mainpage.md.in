@@ -1,0 +1,120 @@
+# API Reference {#mainpage}
+
+## Introduction
+KEO provides a collection of libraries, headers and example applications to ease development of SPINE applications.
+@n A typical SPINE application consists at least of
+- a transport connection unit
+- a transport connection configuration unit
+- a SPINE unit
+
+The transport connection unit provides access to physical network connections for general data exchange. 
+For SPINE scenarios, this typically applies to SHIP (Smart Home IP, defined by EEBus Initiative e.V.). 
+SHIP provides an encrypted peer to peer connection of two 'SHIP nodes' requiring mutual trust. 
+The SHIP specification defines registration and verification procedures to gain certain trust levels and re-connection scenarios.
+It also defines mechanisms to discover other SHIP nodes.
+
+The transport connection configuration unit is typically project specific.
+It implements rules to establish, accept or modify physical connections to remote communication partners.
+E.g. for SHIP, this unit implements the desired verification procedure.
+
+
+The SPINE unit represents a physical (or logical) appliance. 
+It implements the abstract SPINE data model (defined by EEBus Initiative e.V.) and the SPINE protocol specifics (e.g. SPINE address schema).
+The representation is hierarchically structured into 'devices', 'entities' and 'features' composing a SPINE device model.
+To achieve interoperability a SPINE device model shall be designed according to official use cases provided by the EEBus Initiative e.V..
+Vendor specific functionality is typically implemented within features.
+
+The SPINE addressing schema is independent from any transport connection addressing schema.
+For implementation reasons it is beneficial to abstract the transport connection addressing schema on SPINE device model level.
+This allows sending SPINE datagrams from one feature to another one by using exclusively the SPINE address schema.
+
+The SPINE data model defines a modular approach to combine diverse SPINE data model elements. 
+Additionally the SPINE protocol specification defines mandatory, recommended and optional issues. 
+This results in numerous possible combinations and opportunities for future extensions.
+However, this flexibility is achieved at the expense of an easy and quick understanding of SPINE fundamentals, especially for beginners.
+Hence, implementations of [example SPINE applications](@ref examples_framework) are provided to accelerate the process of understanding SPINE fundamentals and how to use the KEO SPINE API.
+
+To create and implement SPINE applications the KEO SPINE API provides
+- SHIP discovery (see [Discovery](@ref ship_discovery))
+- SHIP verification (see [Security Handler](@ref ship_security_handler))
+- SHIP registration and re-connection (see [Stack](@ref ship_stack))
+- SPINE data model (see [SpineDatagram](@ref keo_datagram))
+- SPINE device model (see [KEO SPINE](@ref framework))
+- SPINE and API version information (see keo_spineVersion.h)
+- SPINE Address schema abstraction (see keo_spine::SpineLink)
+- SPINE Utility and convenience classes (see [Util](@ref keo_util))
+
+@image html SPINE_Link_Application.svg
+
+SPINE SubDevices are the sub devices of a gateway in terms of the SPINE specification.
+
+## Threading
+Callbacks are made from an arbitrary thread context. Applications should not rely on any assumptions here.
+The framework intentionally implements no mechanism to make callbacks from one thread context (e.g. an event queue),
+it is up to the application to take care of this.
+
+## Logging
+Logging can be configured using a simple ini file format.
+
+### Log level
+The following log level are defined and can be used during configuration.
+  * %FATAL
+  * %ERROR
+  * %WARNING
+  * %INFO
+  * %TRACE
+  * %DEBUG
+  * %VERB_0
+  * %VERB_1
+  * %VERB_2
+  * %VERB_3
+  * %VERB_4
+  * %VERB_5
+  * %VERB_6
+  * %VERB_7
+  * %VERB_8
+  * %VERB_9
+
+### Logger configuration file
+The logger configuration file is seperated in a global section and different logger sections.
+Each section starts with the logger name enclosed in brackets (e.g. [keo_spine]).
+
+#### Global section
+- to_console=[true|false]<br>
+Defines whether logging will be printed to stdout or not.
+
+- to_file=[true|false]<br>
+Defines whether logging will be written to file or not.
+
+- filename=<name><br>
+Defines the name of the file for logger output.
+
+- level=<level><br>
+The global log level. All log messages with a level higher or equal to this level will be printed out.<br>
+E.g. level=WARNING means that all log messages with FATAL, ERROR and WARNING will be printed out.
+
+#### Logger section
+Logger sections start with the logger name enclosed in brackets (e.g. [keo_spine]).
+The following configurations are possible.
+
+- level=<level><br>
+Overrides the global level configuration.<br>
+All log messages with a level higher or equal to this level will be printed out.<br>
+E.g. level=WARNING means that all log messages with FATAL, ERROR and WARNING will be printed out.
+
+- <level>=[true|false]<br>
+Switches this particular level on or off. (E.g. VERB_6=true)
+
+For more information please refer to the examples of the framework.
+
+### Loggers of KEO SPINE:
+  * %keo_default_security_handler
+  * %keo_ship_stack
+  * %keo_ship_discovery
+  * %keo_spine_transport
+  * %keo_spine
+  * %keo_util
+
+### Loggers of the examples:
+  * %example_client
+  * %example_server
