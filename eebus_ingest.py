@@ -1,15 +1,15 @@
 """
-EEBUS Documentation Ingestion Pipeline (LlamaIndex) — Upgraded Production Version
-===================================================================================
-Processes the EEBUS standard documentation corpus into a persistent ChromaDB vector store.
+EEBUS Documentation Ingestion Pipeline (Production)
+===================================================
+Ingests the EEBUS standard documentation corpus into ChromaDB (dense) and BM25 (sparse).
 
 Features:
-- PDF Stream Noise Filtering: Automatically cleans/filters out corrupt binary PDF stream text.
-- Incremental document hashing (.doc_hashes.json): skips unchanged files (ms updates).
+- Structure-Aware XSD & XML Parsing: Pristine XML elements (<complexType>, <simpleType>) intact.
+- High-fidelity PDF extraction with page-level citations.
+- Incremental document hashing (.doc_hashes.json) to skip unchanged files.
 - Cross-platform path normalization (Linux/WSL & Windows compatible).
-- Type-aware chunking for PDFs, Markdown, XSD schemas, and XML datagrams.
-- High-accuracy embedding model (BAAI/bge-small-en-v1.5).
-- Enriched metadata (component, file type, relative path, page citations).
+- High-accuracy embedding model (BAAI/bge-small-en-v1.5) calibrated to <=400 token chunks.
+- Auto-syncs persistent BM25 index for Hybrid Retrieval.
 
 Usage:
   python eebus_ingest.py           # Incremental ingestion (fast)
@@ -21,6 +21,7 @@ import sys
 import hashlib
 import json
 import shutil
+from pathlib import Path
 import chromadb
 from llama_index.core import (
     VectorStoreIndex,
@@ -28,62 +29,65 @@ from llama_index.core import (
     StorageContext,
     Settings,
 )
+from llama_index.core.schema import TextNode
 from llama_index.core.node_parser import SentenceSplitter, MarkdownNodeParser
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
-# ─── Configuration ──────────────────────────────────────────────────────────────
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EEBUS_DIR = os.path.join(BASE_DIR, "EEBUS")
-PERSIST_DIR = os.path.join(BASE_DIR, "eebus_chroma_db")
-HASHES_FILE = os.path.join(BASE_DIR, ".doc_hashes.json")
-COLLECTION_NAME = "eebus_docs"
-PRIMARY_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-FALLBACK_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
-# ─── Embedding Setup ────────────────────────────────────────────────────────────
-
-def init_embedding_model():
-    """Initialize BGE-small embedding model with automatic fallback."""
-    try:
-        print(f"⚙️  Loading embedding model ({PRIMARY_EMBEDDING_MODEL})...")
-        return HuggingFaceEmbedding(model_name=PRIMARY_EMBEDDING_MODEL)
-    except Exception as err:
-        print(f"⚠️ Could not load {PRIMARY_EMBEDDING_MODEL} ({err}). Falling back to {FALLBACK_EMBEDDING_MODEL}...")
-        return HuggingFaceEmbedding(model_name=FALLBACK_EMBEDDING_MODEL)
+from core.config import (
+    BASE_DIR, EEBUS_DIR, PERSIST_DIR, BM25_PERSIST_DIR, HASHES_FILE,
+    COLLECTION_NAME, EXCLUDE_SEGMENTS
+)
+from core.parsers import (
+    PyPDFReader, StructureAwareXSDParser, is_valid_text_content
+)
+from core.retriever import sync_bm25_from_chroma
+from core.engine import init_embedding_model
 
 
-# ─── Text Sanitize & Noise Filter ──────────────────────────────────────────────
+# ─── Path & Metadata Helpers ───────────────────────────────────────────────────
 
-def is_valid_text_content(text: str) -> bool:
-    """Check if extracted text is readable content and not raw/encoded PDF stream garbage."""
-    if not text or len(text.strip()) < 25:
-        return False
-    
-    # PDF stream markers commonly found in corrupt extracted text
-    pdf_stream_markers = [
-        "/Filter", "/FlateDecode", "/FontDescriptor", "%PDF-",
-        "/XObject", "/MediaBox", "/Length ", "endstream", "endobj"
-    ]
-    
-    marker_count = sum(1 for m in pdf_stream_markers if m in text)
-    if marker_count >= 2:
-        return False
-        
-    # Check ratio of printable characters
-    printable_count = sum(1 for c in text if c.isprintable() or c in "\n\r\t")
-    if len(text) > 0 and (printable_count / len(text)) < 0.85:
-        return False
-        
-    return True
+def is_excluded_path(rel_path: str) -> bool:
+    """Exclude software implementations (KEO), build artifacts, and editor caches."""
+    parts = set(p.upper() for p in rel_path.replace("\\", "/").split("/"))
+    return bool(parts & EXCLUDE_SEGMENTS)
 
 
-# ─── Metadata Extractor ─────────────────────────────────────────────────────────
+def normalize_hash_key(rel_path: str) -> str:
+    """Normalize file paths to forward-slashes for cross-platform hash consistency."""
+    return rel_path.replace("\\", "/").lstrip("./")
+
+
+def compute_file_hash(file_path: str) -> str:
+    """Compute SHA-256 hash of a file."""
+    hasher = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def get_current_hashes() -> dict:
+    """Scan EEBUS directory and compute hashes for all supported files."""
+    hashes = {}
+    for root, _, files in os.walk(EEBUS_DIR):
+        for f in files:
+            ext = os.path.splitext(f)[1].lower()
+            if ext in [".pdf", ".md", ".xsd", ".xml", ".txt"]:
+                full_path = os.path.join(root, f)
+                rel_path = normalize_hash_key(os.path.relpath(full_path, EEBUS_DIR))
+                if is_excluded_path(rel_path):
+                    continue
+                hashes[rel_path] = compute_file_hash(full_path)
+    return hashes
+
 
 def file_metadata_extractor(file_path: str) -> dict:
-    """Extract component, file type, filename, and relative path metadata for each file."""
-    parts = file_path.upper()
+    """Extract component, file type, filename, and relative path metadata."""
+    rel_path = os.path.relpath(file_path, EEBUS_DIR).replace("\\", "/")
+    filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+    
+    parts = rel_path.upper()
     component = "General"
     if "SHIP" in parts:
         component = "SHIP"
@@ -91,53 +95,15 @@ def file_metadata_extractor(file_path: str) -> dict:
         component = "SPINE"
     elif "UC_" in parts or "USECASE" in parts:
         component = "UseCase"
-        
-    rel_path = os.path.relpath(file_path, EEBUS_DIR).replace("\\", "/")
-    filename = os.path.basename(file_path)
-    ext = os.path.splitext(filename)[1].lower()
     
     file_type = "pdf" if ext == ".pdf" else "schema" if ext == ".xsd" else "markdown" if ext in [".md", ".markdown"] else "xml_example" if ext == ".xml" else "text"
     
     return {
         "component": component,
-        "filename": filename,
-        "rel_path": rel_path,
         "file_type": file_type,
+        "filename": filename,
+        "rel_path": rel_path
     }
-
-
-# ─── Hashing & Incremental Ingestion Helpers ─────────────────────────────────────
-
-def normalize_hash_key(key: str) -> str:
-    """Normalize absolute paths or relative paths to standard relative format (cross-platform)."""
-    norm = key.replace("\\", "/")
-    if "/EEBUS/" in norm:
-        norm = norm.split("/EEBUS/", 1)[1]
-    elif "\\EEBUS\\" in key:
-        norm = key.split("\\EEBUS\\", 1)[1].replace("\\", "/")
-    return norm.lstrip("/")
-
-
-def compute_file_hash(filepath: str) -> str:
-    """Compute MD5 checksum of a file."""
-    hasher = hashlib.md5()
-    with open(filepath, "rb") as f:
-        while chunk := f.read(65536):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
-def get_current_hashes() -> dict:
-    """Scan EEBUS directory and calculate current file hashes using normalized relative keys."""
-    hashes = {}
-    for root, _, files in os.walk(EEBUS_DIR):
-        for f in files:
-            ext = os.path.splitext(f)[1].lower()
-            if ext in [".pdf", ".md", ".xsd", ".xml", ".txt"] and not any(k in f.upper() for k in ["KEO", ".XPR", "__PYCACHE__"]):
-                full_path = os.path.join(root, f)
-                rel_path = normalize_hash_key(os.path.relpath(full_path, EEBUS_DIR))
-                hashes[rel_path] = compute_file_hash(full_path)
-    return hashes
 
 
 # ─── Main Ingestion Pipeline ────────────────────────────────────────────────────
@@ -150,9 +116,15 @@ def main():
     print("║     EEBUS Documentation Ingestion Pipeline (Production)      ║")
     print("╠══════════════════════════════════════════════════════════════╣")
     print(f"║  Source:     {EEBUS_DIR:<47s}║")
-    print(f"║  Store:      {PERSIST_DIR:<47s}║")
+    print(f"║  ChromaDB:   {PERSIST_DIR:<47s}║")
+    print(f"║  BM25 Store: {BM25_PERSIST_DIR:<47s}║")
     print(f"║  Mode:       {'FULL REBUILD (--force)' if force_rebuild else 'INCREMENTAL':<47s}║")
     print("╚══════════════════════════════════════════════════════════════╝")
+
+    if not os.path.exists(EEBUS_DIR):
+        print(f"\n❌ Error: The source directory '{EEBUS_DIR}' does not exist.")
+        print("Please ensure the 'EEBUS' directory with standard documents is present.\n")
+        sys.exit(1)
 
     current_hashes = get_current_hashes()
     stored_hashes = {}
@@ -167,11 +139,14 @@ def main():
 
     db_exists = os.path.exists(PERSIST_DIR)
     
-    if force_rebuild and db_exists:
-        print(f"\n🗑️  Force rebuild requested. Cleaning existing database at {PERSIST_DIR}...")
-        shutil.rmtree(PERSIST_DIR)
-        db_exists = False
-        stored_hashes = {}
+    if force_rebuild:
+        if db_exists:
+            print(f"\n🗑️  Force rebuild requested. Cleaning existing database at {PERSIST_DIR}...")
+            shutil.rmtree(PERSIST_DIR)
+            db_exists = False
+            stored_hashes = {}
+        if os.path.exists(BM25_PERSIST_DIR):
+            shutil.rmtree(BM25_PERSIST_DIR)
 
     # Determine file delta
     added_or_modified = []
@@ -187,27 +162,31 @@ def main():
             if rel_path not in current_hashes:
                 deleted.append(rel_path)
 
-    if db_exists and not added_or_modified and not deleted:
-        print("\n✨ All EEBUS documents are up-to-date! No re-indexing required.")
-        print("  Next step: Run the chatbot with  python qabot_gemini.py\n")
-        
-        with open(HASHES_FILE, "w", encoding="utf-8") as f:
-            json.dump(current_hashes, f, indent=2)
-        return
-
-    print(f"\n📊 Change Detection: {len(added_or_modified)} added/modified files, {len(deleted)} deleted files.")
-
-    # Initialize global settings
+    # Setup Embedding Model & ChromaDB Client
     Settings.embed_model = init_embedding_model()
-
-    # 1. Connect to ChromaDB
-    print("\n⚙️  Connecting to ChromaDB persistent storage...")
-    db = chromadb.PersistentClient(path=PERSIST_DIR)
-    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
+    chroma_client = chromadb.PersistentClient(path=PERSIST_DIR)
+    chroma_collection = chroma_client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"}
+    )
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-    # 2. Clean outdated nodes if incremental
+    if db_exists and not added_or_modified and not deleted:
+        print("\n✨ All EEBUS documents are up-to-date! No re-indexing required.")
+        if not os.path.exists(BM25_PERSIST_DIR):
+            sync_bm25_from_chroma(chroma_collection)
+        with open(HASHES_FILE, "w", encoding="utf-8") as f:
+            json.dump(current_hashes, f, indent=2)
+        print(f"  Next step: Run the chatbot with  python qabot.py\n")
+        return
+
+    print(f"\n📊 Document Status:")
+    print(f"  → Total files in EEBUS: {len(current_hashes)}")
+    print(f"  → Added / Modified:     {len(added_or_modified)}")
+    print(f"  → Deleted:              {len(deleted)}")
+
+    # Clean outdated nodes if incremental
     if db_exists:
         for rel_path in added_or_modified + deleted:
             try:
@@ -216,62 +195,108 @@ def main():
                 pass
 
     if not added_or_modified:
+        if not os.path.exists(BM25_PERSIST_DIR):
+            sync_bm25_from_chroma(chroma_collection)
         with open(HASHES_FILE, "w", encoding="utf-8") as f:
             json.dump(current_hashes, f, indent=2)
         print(f"✅ Database updated. Total active chunks in collection: {chroma_collection.count()}")
         return
 
-    # 3. Load documents for added / modified files
-    print(f"\n📄 Loading {len(added_or_modified)} documents from {EEBUS_DIR}...")
-    target_paths = [os.path.join(EEBUS_DIR, rel_path.replace("/", os.sep)) for rel_path in added_or_modified]
+    # Load and process documents
+    print(f"\n📄 Loading and parsing {len(added_or_modified)} documents from {EEBUS_DIR}...")
     
-    reader = SimpleDirectoryReader(
-        input_files=target_paths,
-        file_metadata=file_metadata_extractor
-    )
-    raw_documents = reader.load_data()
-    print(f"  → Loaded {len(raw_documents)} raw document pages/sections.")
-
-    # Clean raw documents
-    documents = []
-    for doc in raw_documents:
-        if is_valid_text_content(doc.text):
-            documents.append(doc)
-            
-    print(f"  → Retained {len(documents)} clean document sections after noise filtering.")
-
-    # 4. Type-Aware Splitters & Node Generation
-    print(f"\n🔢 Chunking documents with type-aware splitters...")
+    pdf_files = []
+    md_files = []
+    xsd_files = []
+    xml_files = []
+    txt_files = []
     
-    md_parser = MarkdownNodeParser()
-    standard_splitter = SentenceSplitter(chunk_size=1200, chunk_overlap=150)
-    code_splitter = SentenceSplitter(chunk_size=900, chunk_overlap=100)
+    for rel_path in added_or_modified:
+        full_path = os.path.join(EEBUS_DIR, rel_path.replace("/", os.sep))
+        ext = os.path.splitext(full_path)[1].lower()
+        if ext == ".pdf":
+            pdf_files.append(full_path)
+        elif ext == ".xsd":
+            xsd_files.append(full_path)
+        elif ext == ".xml":
+            xml_files.append(full_path)
+        elif ext in [".md", ".markdown"]:
+            md_files.append(full_path)
+        elif ext == ".txt":
+            txt_files.append(full_path)
 
-    nodes = []
-    for doc in documents:
-        file_type = doc.metadata.get("file_type", "")
-        if file_type == "markdown":
-            doc_nodes = md_parser.get_nodes_from_documents([doc])
-        elif file_type in ["schema", "xml_example"]:
-            doc_nodes = code_splitter.get_nodes_from_documents([doc])
-        else:
-            doc_nodes = standard_splitter.get_nodes_from_documents([doc])
-            
-        for n in doc_nodes:
-            if is_valid_text_content(n.get_content()):
-                nodes.append(n)
+    all_nodes = []
 
-    print(f"  → Created {len(nodes)} clean semantic nodes.")
+    # 1. Structure-Aware XSD Parsing (complexType, simpleType, element)
+    if xsd_files:
+        print(f"  📐 Parsing {len(xsd_files)} XSD schemas into structural XML nodes...")
+        code_splitter = SentenceSplitter(chunk_size=400, chunk_overlap=30)
+        for xsd_path in xsd_files:
+            meta = file_metadata_extractor(xsd_path)
+            docs = StructureAwareXSDParser.parse_xsd_file(xsd_path, meta)
+            for d in docs:
+                if len(d.text) > 1200:
+                    split_nodes = code_splitter.get_nodes_from_documents([d])
+                    all_nodes.extend([n for n in split_nodes if is_valid_text_content(n.get_content())])
+                else:
+                    all_nodes.append(TextNode(text=d.text, metadata=d.metadata))
 
-    # 5. Ingest nodes into Index & ChromaDB
+    # 2. Structure-Aware XML Datagram Examples
+    if xml_files:
+        print(f"  📋 Parsing {len(xml_files)} XML datagram example files...")
+        for xml_path in xml_files:
+            meta = file_metadata_extractor(xml_path)
+            docs = StructureAwareXSDParser.parse_xml_example(xml_path, meta)
+            for d in docs:
+                all_nodes.append(TextNode(text=d.text, metadata=d.metadata))
+
+    # 3. PDF Files (Page-by-page extraction via PyPDFReader)
+    if pdf_files:
+        print(f"  📄 Loading {len(pdf_files)} PDF specifications via PyPDFReader...")
+        pdf_reader = SimpleDirectoryReader(
+            input_files=pdf_files,
+            file_metadata=file_metadata_extractor,
+            file_extractor={".pdf": PyPDFReader()}
+        )
+        raw_pdfs = pdf_reader.load_data()
+        clean_pdfs = [p for p in raw_pdfs if is_valid_text_content(p.text)]
+        pdf_splitter = SentenceSplitter(chunk_size=400, chunk_overlap=50)
+        pdf_nodes = pdf_splitter.get_nodes_from_documents(clean_pdfs)
+        all_nodes.extend([n for n in pdf_nodes if is_valid_text_content(n.get_content())])
+
+    # 4. Markdown & Text Files
+    if md_files or txt_files:
+        print(f"  📝 Parsing Markdown and Text documentation...")
+        other_files = md_files + txt_files
+        reader = SimpleDirectoryReader(
+            input_files=other_files,
+            file_metadata=file_metadata_extractor
+        )
+        other_docs = reader.load_data()
+        md_parser = MarkdownNodeParser()
+        txt_splitter = SentenceSplitter(chunk_size=400, chunk_overlap=50)
+        for doc in other_docs:
+            if not is_valid_text_content(doc.text):
+                continue
+            if doc.metadata.get("file_type") == "markdown":
+                all_nodes.extend(md_parser.get_nodes_from_documents([doc]))
+            else:
+                all_nodes.extend(txt_splitter.get_nodes_from_documents([doc]))
+
+    print(f"\n🔢 Total pristine semantic nodes generated: {len(all_nodes):,}")
+
+    # Ingest nodes into Index & ChromaDB
     print(f"\n🧠 Generating embeddings and updating ChromaDB...")
     index = VectorStoreIndex(
-        nodes,
+        all_nodes,
         storage_context=storage_context,
         show_progress=True
     )
 
-    # 6. Save updated normalized hashes
+    # Sync persistent BM25 index from full collection
+    sync_bm25_from_chroma(chroma_collection)
+
+    # Save updated hashes
     with open(HASHES_FILE, "w", encoding="utf-8") as f:
         json.dump(current_hashes, f, indent=2)
 
@@ -282,7 +307,7 @@ def main():
     print("╚══════════════════════════════════════════════════════════════╝")
     print(f"  → Processed documents:  {len(added_or_modified)}")
     print(f"  → Total database chunks: {total_chunks:,}")
-    print("\n  Next step: Run the chatbot with  python qabot_gemini.py\n")
+    print("\n  Next step: Run the chatbot with  python qabot.py\n")
 
 
 if __name__ == "__main__":

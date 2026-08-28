@@ -3,8 +3,8 @@ echo ==================================================
 echo   EEBUS Chatbot Environment Setup (Windows)
 echo ==================================================
 
-if not exist "venv" (
-    echo 📦 Creating virtual environment 'venv'...
+if not exist "venv\Scripts\activate.bat" (
+    echo 📦 Creating Windows virtual environment 'venv'...
     python -m venv venv
 )
 
@@ -26,6 +26,6 @@ echo ==================================================
 echo   Setup Complete! Next steps:
 echo   1. Add your API key to .env
 echo   2. Run ingestion:  python eebus_ingest.py
-echo   3. Launch chatbot: python qabot_gemini.py
+echo   3. Launch chatbot: python qabot.py
 echo ==================================================
 pause

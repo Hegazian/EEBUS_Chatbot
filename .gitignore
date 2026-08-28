@@ -10,6 +10,7 @@ ENV/
 
 # Vector Database & Caches
 eebus_chroma_db/
+eebus_bm25/
 .doc_hashes.json
 .model_cache.json
 
