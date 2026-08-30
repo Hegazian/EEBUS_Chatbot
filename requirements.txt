@@ -7,5 +7,10 @@ pypdf>=4.0.0
 python-dotenv>=1.0.0
 gradio>=4.0.0
 google-generativeai>=0.8.0
-rank_bm25>=0.2.2
-
+llama-index-llms-openai>=0.1.5
+llama-index-llms-anthropic>=0.1.5
+llama-index-readers-file>=0.2.0
+rank-bm25>=0.2.2
+llama-index-retrievers-bm25>=0.7.0
+bm25s>=0.3.0
+xmlschema>=3.4.0
