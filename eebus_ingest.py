@@ -195,7 +195,7 @@ def main():
                 pass
 
     if not added_or_modified:
-        if not os.path.exists(BM25_PERSIST_DIR):
+        if deleted or not os.path.exists(BM25_PERSIST_DIR):
             sync_bm25_from_chroma(chroma_collection)
         with open(HASHES_FILE, "w", encoding="utf-8") as f:
             json.dump(current_hashes, f, indent=2)
@@ -230,12 +230,12 @@ def main():
     # 1. Structure-Aware XSD Parsing (complexType, simpleType, element)
     if xsd_files:
         print(f"  📐 Parsing {len(xsd_files)} XSD schemas into structural XML nodes...")
-        code_splitter = SentenceSplitter(chunk_size=400, chunk_overlap=30)
+        code_splitter = SentenceSplitter(chunk_size=600, chunk_overlap=50, paragraph_separator="\n")
         for xsd_path in xsd_files:
             meta = file_metadata_extractor(xsd_path)
             docs = StructureAwareXSDParser.parse_xsd_file(xsd_path, meta)
             for d in docs:
-                if len(d.text) > 1200:
+                if len(d.text) > 2500:
                     split_nodes = code_splitter.get_nodes_from_documents([d])
                     all_nodes.extend([n for n in split_nodes if is_valid_text_content(n.get_content())])
                 else:

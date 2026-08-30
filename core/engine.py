@@ -20,32 +20,37 @@ from llama_index.llms.gemini import Gemini
 from .config import (
     PERSIST_DIR, BM25_PERSIST_DIR, CACHE_FILE, COLLECTION_NAME,
     PRIMARY_EMBEDDING_MODEL, FALLBACK_EMBEDDING_MODEL, RERANKER_MODEL,
-    DEFAULT_RETRIEVER_K, DEFAULT_TEMPERATURE, CACHE_TTL_HOURS, SYSTEM_PROMPT
+    DEFAULT_RETRIEVER_K, DEFAULT_TEMPERATURE, CACHE_TTL_HOURS, SYSTEM_PROMPT,
+    DEFAULT_USER_ROLE, get_system_prompt_for_role
 )
 from .retriever import EEBUSHybridRetriever
 
 
 # ─── Embedding Setup ────────────────────────────────────────────────────────────
 
-def init_embedding_model():
-    """Initialize BGE-small embedding model with automatic fallback."""
+_EMBED_MODEL = None
+
+
+def get_embedding_model():
+    """Lazily initialize BGE-small embedding model with automatic fallback."""
+    global _EMBED_MODEL
+    if _EMBED_MODEL is not None:
+        return _EMBED_MODEL
     try:
-        return HuggingFaceEmbedding(model_name=PRIMARY_EMBEDDING_MODEL)
+        _EMBED_MODEL = HuggingFaceEmbedding(model_name=PRIMARY_EMBEDDING_MODEL)
     except Exception as e:
         print(f"⚠️ Primary embedding model ({PRIMARY_EMBEDDING_MODEL}) failed: {e}. Falling back to {FALLBACK_EMBEDDING_MODEL}...")
-        return HuggingFaceEmbedding(model_name=FALLBACK_EMBEDDING_MODEL)
-
-
-# Configure global default embedding model once
-Settings.embed_model = init_embedding_model()
+        _EMBED_MODEL = HuggingFaceEmbedding(model_name=FALLBACK_EMBEDDING_MODEL)
+    Settings.embed_model = _EMBED_MODEL
+    return _EMBED_MODEL
 
 
 # ─── Model Discovery & Persistent Caching ──────────────────────────────────────
 
-def select_best_model() -> str:
+def select_best_model(api_key: Optional[str] = None) -> str:
     """Dynamically discover available Gemini models with persistent caching."""
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key or api_key == "your_actual_gemini_api_key_here":
+    key = api_key or os.getenv("GOOGLE_API_KEY")
+    if not key or key == "your_actual_gemini_api_key_here":
         return "models/gemini-1.5-flash"
 
     if os.path.exists(CACHE_FILE):
@@ -61,11 +66,10 @@ def select_best_model() -> str:
 
     try:
         import google.generativeai as genai
-        genai.configure(api_key=api_key)
+        genai.configure(api_key=key)
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
         priority = [
-            "models/gemini-2.5-flash",
             "models/gemini-2.0-flash",
             "models/gemini-1.5-flash-latest",
             "models/gemini-1.5-flash",
@@ -94,9 +98,6 @@ def select_best_model() -> str:
         return "models/gemini-1.5-flash"
 
 
-LLM_MODEL = select_best_model()
-
-
 # ─── Chat Engine Factory (Per-Session Isolated) ────────────────────────────────
 
 def create_chat_engine(
@@ -105,7 +106,8 @@ def create_chat_engine(
     llm_provider: str = "Gemini (Google)",
     api_key: str = "",
     component_filter: str = "All Specifications",
-    use_reranker: bool = True
+    use_reranker: bool = True,
+    user_role: str = DEFAULT_USER_ROLE
 ) -> Tuple[ContextChatEngine, int]:
     """
     Factory function creating an isolated ContextChatEngine instance with
@@ -121,6 +123,7 @@ def create_chat_engine(
     chroma_collection = db.get_collection(COLLECTION_NAME)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     
+    get_embedding_model()
     index = VectorStoreIndex.from_vector_store(vector_store)
     session_memory = ChatMemoryBuffer.from_defaults(token_limit=16000)
 
@@ -129,7 +132,7 @@ def create_chat_engine(
         key = api_key or os.getenv("GOOGLE_API_KEY")
         if not key or key == "your_actual_gemini_api_key_here":
             raise ValueError("Google Gemini API Key is missing. Please set GOOGLE_API_KEY in .env or the UI.")
-        model_name = LLM_MODEL if LLM_MODEL else "models/gemini-1.5-flash"
+        model_name = select_best_model(key)
         session_llm = Gemini(model=model_name, temperature=temperature, max_tokens=4096, api_key=key)
     elif llm_provider == "ChatGPT (OpenAI)":
         try:
@@ -155,15 +158,34 @@ def create_chat_engine(
     else:
         raise ValueError(f"Unknown LLM Provider: {llm_provider}")
 
+    # Determine component target for metadata-level filtering
+    target_comp = None
+    if component_filter and component_filter not in ["All", "All Specifications"]:
+        cf_lower = component_filter.lower()
+        if "ship" in cf_lower:
+            target_comp = "SHIP"
+        elif "spine" in cf_lower:
+            target_comp = "SPINE"
+        elif "use" in cf_lower:
+            target_comp = "UseCase"
+
     # Build hybrid retriever (Vector + BM25)
     fetch_k = max(int(top_k) * 2, 14)
-    vector_retriever = index.as_retriever(similarity_top_k=fetch_k)
+    filters = None
+    if target_comp:
+        try:
+            from llama_index.core.vector_stores import MetadataFilters, ExactMatchFilter
+            filters = MetadataFilters(filters=[ExactMatchFilter(key="component", value=target_comp)])
+        except Exception:
+            filters = None
+
+    vector_retriever = index.as_retriever(similarity_top_k=fetch_k, filters=filters)
 
     bm25_retriever = None
     if os.path.exists(BM25_PERSIST_DIR):
         try:
             bm25_retriever = BM25Retriever.from_persist_dir(BM25_PERSIST_DIR)
-            bm25_retriever.similarity_top_k = fetch_k
+            bm25_retriever.similarity_top_k = max(fetch_k * 3, 30) if target_comp else fetch_k
         except Exception as err:
             print(f"⚠️ Note loading BM25 index ({err}). Continuing with vector retriever.")
 
@@ -187,10 +209,24 @@ def create_chat_engine(
         except Exception as err:
             print(f"⚠️ Note loading SentenceTransformerRerank ({err}).")
 
+    # Fallback node trimmer when reranker is bypassed so top_k is always honored
+    if not node_postprocessors:
+        try:
+            from llama_index.core.postprocessor.types import BaseNodePostprocessor
+            class TopKTrimmer(BaseNodePostprocessor):
+                limit: int
+                def _postprocess_nodes(self, nodes, query_bundle=None):
+                    return nodes[:self.limit]
+            node_postprocessors.append(TopKTrimmer(limit=int(top_k)))
+        except Exception:
+            pass
+
+    system_prompt = get_system_prompt_for_role(user_role)
+
     chat_engine = ContextChatEngine.from_defaults(
         retriever=hybrid_retriever,
         memory=session_memory,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         node_postprocessors=node_postprocessors,
         llm=session_llm
     )

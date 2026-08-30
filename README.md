@@ -206,7 +206,7 @@ The knowledge base indexes the complete official standard specifications:
 
 | Specification | Version | Format | Coverage |
 | :--- | :--- | :--- | :--- |
-| **SHIP Technical Specification** | v1.1.0 | PDF | Transport, TLS 1.3, mDNS, SME handshake |
+| **SHIP Technical Specification** | v1.1.0 | PDF | Transport, TLS 1.2, mDNS, SME handshake |
 | **SHIP Implementation Guide** | v1.1.0 | Markdown | Developer setup, message sequence charts |
 | **SHIP Transfer Protocol Schema** | v1.1.0 | XSD | CMI frames, Hello, PIN, Data exchange |
 | **SPINE Protocol Specification** | v1.3.0 | PDF | Datagram layer, Command frames, Classifiers |

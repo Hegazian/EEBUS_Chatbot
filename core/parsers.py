@@ -16,7 +16,7 @@ from llama_index.core.schema import Document
 
 def is_valid_text_content(text: str) -> bool:
     """Filter out binary noise, PDF raw streams, and malformed fragments."""
-    if not text or len(text.strip()) < 20:
+    if not text or len(text.strip()) < 10:
         return False
     pdf_stream_markers = ["/Filter", "/FlateDecode", "/FontDescriptor", "%PDF-", "/XObject", "endstream", "endobj"]
     if sum(1 for m in pdf_stream_markers if m in text) >= 2:
@@ -70,6 +70,9 @@ class StructureAwareXSDParser:
         filename = os.path.basename(file_path)
         meta_base = dict(base_metadata or {})
         
+        # Ensure canonical namespace registration
+        ET.register_namespace("xs", "http://www.w3.org/2001/XMLSchema")
+        
         try:
             tree = ET.parse(file_path)
             root = tree.getroot()
@@ -92,7 +95,8 @@ class StructureAwareXSDParser:
                     # Clean redundant root-level namespace prefixes for cleaner LLM context
                     xml_repr = re.sub(r'\s+xmlns(:\w+)?="[^"]+"', '', xml_repr)
                     
-                    content = f"{header_doc}\n<{tag} name=\"{name}\">\n{xml_repr}\n</{tag}>" if not xml_repr.startswith(f"<{tag}") else f"{header_doc}\n{xml_repr}"
+                    # Store self-contained structural definition without double wrapping
+                    content = f"{header_doc}\n{xml_repr}"
                     
                     doc_meta = dict(meta_base)
                     doc_meta["schema_element_type"] = tag

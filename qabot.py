@@ -10,6 +10,8 @@ Multi-Tab Production Workspace:
 
 import os
 import sys
+import html
+import time
 import argparse
 import warnings
 from dotenv import load_dotenv
@@ -22,7 +24,7 @@ import gradio as gr
 
 from core.config import (
     PERSIST_DIR, COLLECTION_NAME, DEFAULT_RETRIEVER_K, DEFAULT_TEMPERATURE,
-    CATEGORIZED_QUESTIONS
+    CATEGORIZED_QUESTIONS, USER_ROLES, DEFAULT_USER_ROLE
 )
 from core.engine import create_chat_engine
 from core.parsers import is_clean_node
@@ -81,8 +83,12 @@ def format_sources_html(source_nodes) -> str:
         if len(snippet) > 480:
             snippet = snippet[:480] + "..."
 
+        safe_filename = html.escape(str(filename))
+        safe_snippet = html.escape(str(snippet))
+        safe_schema_name = html.escape(str(schema_name)) if schema_name else ""
+
         page_str = f"<span style='color:#94a3b8; font-size:0.8em; margin-left:6px;'>Page {page}</span>" if page else ""
-        elem_str = f"<span style='color:#38bdf8; font-size:0.8em; margin-left:6px;'>Type: {schema_name}</span>" if schema_name else ""
+        elem_str = f"<span style='color:#38bdf8; font-size:0.8em; margin-left:6px;'>Type: {safe_schema_name}</span>" if safe_schema_name else ""
         
         score_val = getattr(node, "score", None)
         score_badge = f"<span style='color:#38bdf8; font-size:0.75em; margin-left:auto;'>Score: {score_val:.2f}</span>" if score_val is not None else ""
@@ -91,7 +97,7 @@ def format_sources_html(source_nodes) -> str:
 <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:12px; margin-bottom:10px; transition:all 0.2s ease;">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <span style="font-weight:600; font-size:0.88em; color:#e2e8f0; display:flex; align-items:center; gap:6px;">
-            <span>{icon}</span> {filename}
+            <span>{icon}</span> {safe_filename}
         </span>
         <span style="font-size:0.72em; font-weight:700; padding:2px 8px; border-radius:12px; {badge_style}">
             {component}
@@ -104,7 +110,7 @@ def format_sources_html(source_nodes) -> str:
         <summary style="cursor:pointer; color:#8b5cf6; font-size:0.8em; font-weight:600; user-select:none;">
             🔍 View Spec Passages
         </summary>
-        <pre style="background:#080c14; color:#cbd5e1; font-family:'JetBrains Mono', monospace; font-size:0.75em; padding:10px; border-radius:8px; margin-top:6px; border:1px solid #1e293b; white-space:pre-wrap; max-height:180px; overflow-y:auto; line-height:1.4;">{snippet}</pre>
+        <pre style="background:#080c14; color:#cbd5e1; font-family:'JetBrains Mono', monospace; font-size:0.75em; padding:10px; border-radius:8px; margin-top:6px; border:1px solid #1e293b; white-space:pre-wrap; max-height:180px; overflow-y:auto; line-height:1.4;">{safe_snippet}</pre>
     </details>
 </div>
 """
@@ -124,7 +130,8 @@ def stream_respond(
     llm_provider: str,
     api_key: str,
     component_filter: str = "All Specifications",
-    use_reranker: bool = True
+    use_reranker: bool = True,
+    user_role: str = DEFAULT_USER_ROLE
 ):
     """Process user message and stream response using per-session isolated ChatEngine."""
     if not message.strip():
@@ -147,6 +154,7 @@ def stream_respond(
         or session.get("api_key") != api_key
         or session.get("component_filter") != component_filter
         or session.get("use_reranker") != use_reranker
+        or session.get("user_role") != user_role
     )
 
     if needs_rebuild:
@@ -157,7 +165,8 @@ def stream_respond(
                 llm_provider=llm_provider,
                 api_key=api_key,
                 component_filter=component_filter,
-                use_reranker=use_reranker
+                use_reranker=use_reranker,
+                user_role=user_role
             )
             session["engine"] = engine
             session["temperature"] = temperature
@@ -166,6 +175,7 @@ def stream_respond(
             session["api_key"] = api_key
             session["component_filter"] = component_filter
             session["use_reranker"] = use_reranker
+            session["user_role"] = user_role
 
             if history:
                 try:
@@ -288,17 +298,24 @@ def inspect_datagram_handler(xml_text: str, session: dict):
 def format_state_machine_view(machine_key: str):
     """Generate Mermaid diagram and state transition table for chosen state machine."""
     data = get_state_machine_data(machine_key)
+    uid = f"mermaid_{machine_key}_{int(time.time() * 1000)}"
     
     mermaid_html = f"""
-<div class="mermaid-box" style="background:#0b1120; border:1px solid #1e3a5f; border-radius:14px; padding:20px; margin-bottom:16px; overflow-x:auto;">
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
-    </script>
+<div id="{uid}" class="mermaid-box" style="background:#0b1120; border:1px solid #1e3a5f; border-radius:14px; padding:20px; margin-bottom:16px; overflow-x:auto;">
     <pre class="mermaid">
 {data['mermaid']}
     </pre>
 </div>
+<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onload="(function(){{
+    function renderMermaid() {{
+        if (window.mermaid) {{
+            window.mermaid.run({{ nodes: document.querySelectorAll('#{uid} .mermaid') }});
+        }} else {{
+            setTimeout(renderMermaid, 120);
+        }}
+    }}
+    renderMermaid();
+}})();" />
 """
     
     info_md = f"""
@@ -526,6 +543,14 @@ body, .gradio-container {
 """
 
 
+HEAD_JS = """
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    window.mermaid = mermaid;
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+</script>
+"""
+
 # ─── Gradio UI Builder ─────────────────────────────────────────────────────────
 
 def build_ui():
@@ -539,7 +564,7 @@ def build_ui():
 
     sample_dict = get_sample_datagrams()
 
-    with gr.Blocks(title="EEBUS Engineering Platform", css=CUSTOM_CSS, theme=gr.themes.Base()) as demo:
+    with gr.Blocks(title="EEBUS Engineering Platform", css=CUSTOM_CSS, head=HEAD_JS, theme=gr.themes.Base()) as demo:
         
         # Per-Session State
         session_state = gr.State(lambda: {
@@ -549,7 +574,8 @@ def build_ui():
             "llm_provider": "Gemini (Google)",
             "api_key": "",
             "component_filter": "All Specifications",
-            "use_reranker": True
+            "use_reranker": True,
+            "user_role": DEFAULT_USER_ROLE
         })
 
         # Header Block
@@ -583,6 +609,21 @@ def build_ui():
                 with gr.Row():
                     with gr.Column(scale=3):
                         chatbot = gr.Chatbot(elem_id="chatbot", show_label=False)
+
+                        with gr.Row():
+                            role_dropdown = gr.Dropdown(
+                                choices=list(USER_ROLES.keys()),
+                                value=DEFAULT_USER_ROLE,
+                                label="🎭 User Engineering Role / Persona",
+                                info="Tailors technical depth, code snippets, test scenarios, or architecture",
+                                scale=3
+                            )
+                            component_filter_dropdown = gr.Dropdown(
+                                choices=["All Specifications", "SHIP (Transport)", "SPINE (Application)", "Use Cases"],
+                                value="All Specifications",
+                                label="🎯 Specification Scope Filter",
+                                scale=2
+                            )
                         
                         with gr.Row():
                             msg = gr.Textbox(
@@ -596,24 +637,19 @@ def build_ui():
                             send_btn = gr.Button("Send ⚡", elem_classes=["primary-btn"], scale=1)
                             clear_btn = gr.Button("Clear 🗑️", elem_classes=["secondary-btn"], scale=1)
 
-                        with gr.Accordion("⚙️ RAG Engine Settings", open=False):
+                        with gr.Accordion("⚙️ Advanced RAG Engine Settings", open=False):
                             with gr.Row():
                                 llm_provider_dropdown = gr.Dropdown(
                                     choices=["Gemini (Google)", "ChatGPT (OpenAI)", "Claude (Anthropic)"], 
                                     value="Gemini (Google)", 
                                     label="🤖 LLM Provider"
                                 )
-                                component_filter_dropdown = gr.Dropdown(
-                                    choices=["All Specifications", "SHIP (Transport)", "SPINE (Application)", "Use Cases"],
-                                    value="All Specifications",
-                                    label="🎯 Specification Scope Filter"
-                                )
-                            with gr.Row():
                                 api_key_input = gr.Textbox(
                                     type="password", 
                                     placeholder="Optional: Override .env key...", 
                                     label="🔑 API Key"
                                 )
+                            with gr.Row():
                                 reranker_checkbox = gr.Checkbox(
                                     value=True,
                                     label="⚡ Cross-Encoder Reranking (MS-MARCO Precision Boost)"
@@ -642,6 +678,7 @@ def build_ui():
                                 f"**Embeddings:** `BAAI/bge-small-en-v1.5`\n\n"
                                 f"**Retriever:** `Hybrid (Dense BGE + Sparse BM25)`\n\n"
                                 f"**Reranker:** `Cross-Encoder MS-MARCO`\n\n"
+                                f"**Active Persona:** `Dynamic (5 Roles)`\n\n"
                                 f"**Isolation:** `Per-Session gr.State`\n\n"
                                 f"**Mode:** `Token Streaming ⚡`"
                             ),
@@ -654,7 +691,8 @@ def build_ui():
                     llm_provider_dropdown,
                     api_key_input,
                     component_filter_dropdown,
-                    reranker_checkbox
+                    reranker_checkbox,
+                    role_dropdown
                 ]
 
                 gr.HTML("<div class='sidebar-label' style='margin-top:12px;'>💡 QUICK SPECIFICATION PROMPTS</div>")

@@ -12,7 +12,7 @@ STATE_MACHINES = {
         "standard": "EEBus SHIP TS Specification v1.1.0 — Section 12",
         "description": (
             "The State Machine Entity (SME) governs peer connection lifecycle in SHIP, "
-            "including mDNS discovery, TLS 1.3 mutual authentication, CMI hello handshake, "
+            "including mDNS discovery, TLS 1.2 mutual authentication, CMI hello handshake, "
             "PIN verification, and transition to active SPINE data exchange."
         ),
         "mermaid": """graph TD
@@ -23,7 +23,7 @@ STATE_MACHINES = {
 
     S0((Start)) --> S1[sme_cmi_state_init]:::initStyle
     S1 -->|mDNS Discover| S2[sme_cmi_state_listen / client_send]:::initStyle
-    S2 -->|TCP/TLS 1.3 Connected| S3[sme_hello_state_ready]:::handshakeStyle
+    S2 -->|TCP/TLS 1.2 Connected| S3[sme_hello_state_ready]:::handshakeStyle
     S3 -->|C_HELLO Msg Exchange| S4[sme_hello_state_ok]:::handshakeStyle
     S4 -->|Protocol Check| S5[sme_prot_h_state_client_init]:::handshakeStyle
     S5 -->|Protocol Approved| S6{PIN Required?}:::handshakeStyle
@@ -47,7 +47,7 @@ STATE_MACHINES = {
             {
                 "state": "sme_hello_state_ready",
                 "phase": "Hello Handshake",
-                "trigger": "WebSocket connection opened over TLS 1.3",
+                "trigger": "WebSocket connection opened over TLS 1.2",
                 "timeout": "T_hello_init (10,000 ms)",
                 "description": "Peers exchange 'cmi_hello' frames containing SHIP ID and protocol versions."
             },

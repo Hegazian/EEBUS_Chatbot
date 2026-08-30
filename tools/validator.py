@@ -174,6 +174,10 @@ As the EEBUS Protocol Expert:
 2. Provide the corrected, fully compliant XML snippet.
 """
     try:
+        llm = getattr(chat_engine, "_llm", None) or getattr(chat_engine, "llm", None)
+        if llm:
+            response = llm.complete(prompt)
+            return str(response)
         response = chat_engine.chat(prompt)
         return str(response)
     except Exception as e:
