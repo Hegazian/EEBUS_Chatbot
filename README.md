@@ -93,12 +93,13 @@ EEBUS_Chatbot/
 │   ├── evaluate_rag.py                 # 25 ground-truth evaluation benchmark
 │   └── benchmark_report.md             # Auto-generated benchmark scorecard
 ├── EEBUS/                              # Official standard documentation corpus
-│   ├── EEBus_SHIP_TS_Specification_v1.1.0.pdf
-│   ├── SHIP_Protocol_Implementation_Guide.md
-│   ├── EEBus_SPINE_V1.3.0/
-│   │   ├── XSDs/                       # 75 SPINE W3C XML Schema files
-│   │   └── ExampleXMLs/                # Official SPINE datagram examples
-│   └── EEBus_UC_*/                     # 5 Use Case Specifications & Implementation Guides
+│   ├── EEBus_SHIP_TS_Specification_v1.1.0/
+│   ├── EEBus_SPINE_V1.3.0_Final_hp/
+│   │   └── XSDs/                       # 77 SPINE W3C XML Schema files
+│   ├── Implementation Guides/          # Official SHIP and SPINE Implementation Guides
+│   ├── Test Specifications/            # Conformance test suites
+│   ├── Test Cases/                     # High-level test specifications
+│   └── Use Cases/                      # E-Mobility, Grid, Inverter, HVAC Use Cases
 ├── eebus_ingest.py                     # CLI document ingestion pipeline
 ├── qabot.py                            # Production 4-tab Gradio engineering platform
 ├── requirements.txt                    # Project dependencies
@@ -206,7 +207,7 @@ The knowledge base indexes the complete official standard specifications:
 
 | Specification | Version | Format | Coverage |
 | :--- | :--- | :--- | :--- |
-| **SHIP Technical Specification** | v1.1.0 | PDF | Transport, TLS 1.3, mDNS, SME handshake |
+| **SHIP Technical Specification** | v1.1.0 | PDF | Transport, TLS 1.2, mDNS, SME handshake |
 | **SHIP Implementation Guide** | v1.1.0 | Markdown | Developer setup, message sequence charts |
 | **SHIP Transfer Protocol Schema** | v1.1.0 | XSD | CMI frames, Hello, PIN, Data exchange |
 | **SPINE Protocol Specification** | v1.3.0 | PDF | Datagram layer, Command frames, Classifiers |

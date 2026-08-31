@@ -49,7 +49,8 @@ class EEBUSHybridRetriever(BaseRetriever):
             target = self.component_filter.upper()
 
         for item in nodes:
-            comp = (item.metadata.get("component") or "").upper()
+            meta = item.node.metadata if hasattr(item, "node") else getattr(item, "metadata", {}) or {}
+            comp = (meta.get("component") or "").upper()
             if target in comp or comp in target:
                 filtered.append(item)
         return filtered
@@ -70,21 +71,41 @@ class EEBUSHybridRetriever(BaseRetriever):
         if not vector_nodes:
             return bm25_nodes[:self.candidate_k]
 
-        # Reciprocal Rank Fusion (RRF, k=60)
+        # Reciprocal Rank Fusion (RRF, k=60) with Normative Document Weighting
         node_dict = {}
         rrf_scores = {}
         k = 60
 
+        def get_doc_weight(meta: dict) -> float:
+            doc_kind = str(meta.get("doc_kind", "")).lower()
+            fname = str(meta.get("filename", "")).upper()
+            file_type = str(meta.get("file_type", "")).lower()
+
+            # Primary technical specifications & schema definitions
+            if file_type == "schema" or "_TS_" in fname or "SPECIFICATION" in doc_kind:
+                return 1.15
+            # Implementation guides
+            if "_IG_" in fname or "IMPLEMENTATION_GUIDE" in doc_kind:
+                return 1.00
+            # Overview documents, summaries, and technical reports get slightly lower weighting
+            if "OVERVIEW" in fname or "_TR_" in fname or "REPORT" in doc_kind:
+                return 0.70
+            return 0.90
+
         for rank, item in enumerate(vector_nodes):
             nid = item.node.node_id
             node_dict[nid] = item.node
-            rrf_scores[nid] = rrf_scores.get(nid, 0.0) + (1.0 / (k + rank + 1))
+            meta = item.node.metadata if hasattr(item, "node") else {}
+            weight = get_doc_weight(meta)
+            rrf_scores[nid] = rrf_scores.get(nid, 0.0) + (weight * (1.0 / (k + rank + 1)))
 
         for rank, item in enumerate(bm25_nodes):
             nid = item.node.node_id
             if nid not in node_dict:
                 node_dict[nid] = item.node
-            rrf_scores[nid] = rrf_scores.get(nid, 0.0) + (1.0 / (k + rank + 1))
+            meta = item.node.metadata if hasattr(item, "node") else {}
+            weight = get_doc_weight(meta)
+            rrf_scores[nid] = rrf_scores.get(nid, 0.0) + (weight * (1.0 / (k + rank + 1)))
 
         sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
         return [NodeWithScore(node=node_dict[nid], score=rrf_scores[nid]) for nid in sorted_ids[:self.candidate_k]]

@@ -1,33 +1,29 @@
-# Python Virtual Environment
+﻿# Environment & Secrets
+.env
+*.env.local
+
+# Python Virtual Environments & Packages
 venv/
 env/
 ENV/
-.venv
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
 
-# Environment & Credentials
-.env
-.env.local
-
-# Vector Database & Caches
+# EEBUS Local Vector Store & Lexical Index
 eebus_chroma_db/
 eebus_bm25/
 .doc_hashes.json
 .model_cache.json
 
-# Python Cache & Build
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.python-version
-
-# Logs & Temporary Files
-*.log
-eebus_chatbot.log
-
-# IDE & Editor Settings
-.idea/
+# IDE & Editor Artifacts
 .vscode/
+.idea/
 *.swp
 *.swo
-.DS_Store
+
+# Test and Scratch Outputs
+tests/benchmark_report.md
+scratch/

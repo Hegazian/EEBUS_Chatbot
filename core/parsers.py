@@ -7,16 +7,24 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
-from pypdf import PdfReader
-from llama_index.core.readers.base import BaseReader
-from llama_index.core.schema import Document
+
+try:
+    from llama_index.core.readers.base import BaseReader
+    from llama_index.core.schema import Document
+except ImportError:
+    class BaseReader:
+        pass
+    class Document:
+        def __init__(self, text: str = "", metadata: Optional[Dict] = None):
+            self.text = text
+            self.metadata = metadata or {}
 
 
 # ─── Content Sanitization Helpers ──────────────────────────────────────────────
 
 def is_valid_text_content(text: str) -> bool:
     """Filter out binary noise, PDF raw streams, and malformed fragments."""
-    if not text or len(text.strip()) < 20:
+    if not text or len(text.strip()) < 10:
         return False
     pdf_stream_markers = ["/Filter", "/FlateDecode", "/FontDescriptor", "%PDF-", "/XObject", "endstream", "endobj"]
     if sum(1 for m in pdf_stream_markers if m in text) >= 2:
@@ -41,6 +49,7 @@ class PyPDFReader(BaseReader):
     def load_data(self, file_path: str, extra_info: Optional[Dict] = None) -> List[Document]:
         documents = []
         try:
+            from pypdf import PdfReader
             reader = PdfReader(file_path)
             for idx, page in enumerate(reader.pages):
                 page_text = page.extract_text() or ""
@@ -70,6 +79,9 @@ class StructureAwareXSDParser:
         filename = os.path.basename(file_path)
         meta_base = dict(base_metadata or {})
         
+        # Ensure canonical namespace registration
+        ET.register_namespace("xs", "http://www.w3.org/2001/XMLSchema")
+        
         try:
             tree = ET.parse(file_path)
             root = tree.getroot()
@@ -89,10 +101,14 @@ class StructureAwareXSDParser:
                     
                     xml_repr = ET.tostring(child, encoding="unicode").strip()
                     
-                    # Clean redundant root-level namespace prefixes for cleaner LLM context
-                    xml_repr = re.sub(r'\s+xmlns(:\w+)?="[^"]+"', '', xml_repr)
+                    # Ensure xmlns:xs is declared on root element of the structural unit if not present
+                    if 'xmlns:xs=' not in xml_repr and 'xs:' in xml_repr:
+                        xml_repr = re.sub(r'^(<[a-zA-Z0-9_:]+)', r'\1 xmlns:xs="http://www.w3.org/2001/XMLSchema"', xml_repr, count=1)
+                    if target_ns and 'xmlns:ns_p=' not in xml_repr and 'ns_p:' in xml_repr:
+                        xml_repr = re.sub(r'^(<[a-zA-Z0-9_:]+)', f'\\1 xmlns:ns_p="{target_ns}"', xml_repr, count=1)
                     
-                    content = f"{header_doc}\n<{tag} name=\"{name}\">\n{xml_repr}\n</{tag}>" if not xml_repr.startswith(f"<{tag}") else f"{header_doc}\n{xml_repr}"
+                    # Store self-contained structural definition without double wrapping
+                    content = f"{header_doc}\n{xml_repr}"
                     
                     doc_meta = dict(meta_base)
                     doc_meta["schema_element_type"] = tag

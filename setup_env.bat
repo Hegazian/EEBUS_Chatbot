@@ -3,13 +3,20 @@ echo ==================================================
 echo   EEBUS Chatbot Environment Setup (Windows)
 echo ==================================================
 
-if not exist "venv\Scripts\activate.bat" (
-    echo 📦 Creating Windows virtual environment 'venv'...
-    python -m venv venv
+set "VENV_DIR=venv"
+if exist "venv\bin\activate" (
+    echo ℹ️ Found Linux/WSL virtual environment in 'venv'.
+    echo 📦 Using dedicated Windows virtual environment 'venv_win'...
+    set "VENV_DIR=venv_win"
+)
+
+if not exist "%VENV_DIR%\Scripts\activate.bat" (
+    echo 📦 Creating Windows virtual environment '%VENV_DIR%'...
+    python -m venv %VENV_DIR%
 )
 
 echo ⚡ Activating virtual environment...
-call venv\Scripts\activate.bat
+call %VENV_DIR%\Scripts\activate.bat
 
 echo 📥 Installing required dependencies...
 python -m pip install --upgrade pip

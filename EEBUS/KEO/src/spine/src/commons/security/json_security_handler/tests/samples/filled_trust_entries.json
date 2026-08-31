@@ -1,7 +1,0 @@
-{
-    "TestGateway.imaginarySKI" : {
-        "UserTrust" : 5,
-        "PKITrust" : 80,
-        "SecondFactorTrust" : 911
-    }
-}
