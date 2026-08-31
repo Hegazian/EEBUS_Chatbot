@@ -1,6 +1,0 @@
- * @startuml
- * SmartDeviceApplication *-- SmartDevice 
- * SmartDeviceApplication *-- Distributor
- * SmartDeviceApplication *-- Configuration
- * @enduml
-

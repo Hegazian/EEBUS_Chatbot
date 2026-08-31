@@ -41,7 +41,7 @@ from core.parsers import (
     PyPDFReader, StructureAwareXSDParser, is_valid_text_content
 )
 from core.retriever import sync_bm25_from_chroma
-from core.engine import init_embedding_model
+from core.engine import get_embedding_model
 
 
 # ─── Path & Metadata Helpers ───────────────────────────────────────────────────
@@ -82,25 +82,71 @@ def get_current_hashes() -> dict:
 
 
 def file_metadata_extractor(file_path: str) -> dict:
-    """Extract component, file type, filename, and relative path metadata."""
+    """Extract component, file type, document kind, subdomain, filename, and relative path metadata."""
     rel_path = os.path.relpath(file_path, EEBUS_DIR).replace("\\", "/")
     filename = os.path.basename(file_path)
     ext = os.path.splitext(filename)[1].lower()
     
     parts = rel_path.upper()
-    component = "General"
+    
+    # 1. Component classification (SHIP, SPINE, UseCase, General)
+    top_folder = parts.split("/")[0] if "/" in parts else parts
     if "SHIP" in parts:
         component = "SHIP"
     elif "SPINE" in parts:
         component = "SPINE"
-    elif "UC_" in parts or "USECASE" in parts:
+    elif any(k in parts for k in [
+        "USE CASE", "USECASE", "USE_CASE", "UC_", "TEST CASE", "TEST_CASE",
+        "E-MOBILITY", "GRID", "INVERTER", "HVAC", "14A", "LPC", "LPP", "MGCP", "MPC"
+    ]) or any(k in top_folder for k in ["USE CASE", "TEST CASE", "TEST SPECIFICATION"]):
         component = "UseCase"
+    else:
+        component = "General"
     
-    file_type = "pdf" if ext == ".pdf" else "schema" if ext == ".xsd" else "markdown" if ext in [".md", ".markdown"] else "xml_example" if ext == ".xml" else "text"
+    # 2. File type
+    file_type = (
+        "pdf" if ext == ".pdf"
+        else "schema" if ext == ".xsd"
+        else "markdown" if ext in [".md", ".markdown"]
+        else "xml_example" if ext == ".xml"
+        else "excel" if ext in [".xlsx", ".xls"]
+        else "text"
+    )
+
+    # 3. Document Kind (specification, test, implementation guide, schema, example)
+    if ext == ".xsd":
+        doc_kind = "schema"
+    elif ext == ".xml":
+        doc_kind = "xml_example"
+    elif "TEST" in parts:
+        doc_kind = "test_specification"
+    elif "IMPLEMENTATION GUIDES" in parts or "_IG_" in parts:
+        doc_kind = "implementation_guide"
+    elif "SPECIFICATION" in parts or "_TS_" in parts:
+        doc_kind = "specification"
+    elif "TECHNICAL REPORT" in parts or "_TR_" in parts:
+        doc_kind = "technical_report"
+    else:
+        doc_kind = "documentation"
+
+    # 4. Subdomain
+    subdomain = "Core"
+    if "E-MOBILITY" in parts:
+        subdomain = "E-Mobility"
+    elif "GRID" in parts or "14A" in parts:
+        subdomain = "Grid & §14a"
+    elif "INVERTER" in parts:
+        subdomain = "Inverter & PV"
+    elif "HVAC" in parts:
+        subdomain = "HVAC & Heat Pump"
+    elif "TEST" in parts:
+        subdomain = "Testing & Conformance"
     
     return {
         "component": component,
         "file_type": file_type,
+        "doc_kind": doc_kind,
+        "subdomain": subdomain,
         "filename": filename,
         "rel_path": rel_path
     }
@@ -163,7 +209,7 @@ def main():
                 deleted.append(rel_path)
 
     # Setup Embedding Model & ChromaDB Client
-    Settings.embed_model = init_embedding_model()
+    Settings.embed_model = get_embedding_model()
     chroma_client = chromadb.PersistentClient(path=PERSIST_DIR)
     chroma_collection = chroma_client.get_or_create_collection(
         name=COLLECTION_NAME,
@@ -230,16 +276,11 @@ def main():
     # 1. Structure-Aware XSD Parsing (complexType, simpleType, element)
     if xsd_files:
         print(f"  📐 Parsing {len(xsd_files)} XSD schemas into structural XML nodes...")
-        code_splitter = SentenceSplitter(chunk_size=600, chunk_overlap=50, paragraph_separator="\n")
         for xsd_path in xsd_files:
             meta = file_metadata_extractor(xsd_path)
             docs = StructureAwareXSDParser.parse_xsd_file(xsd_path, meta)
             for d in docs:
-                if len(d.text) > 2500:
-                    split_nodes = code_splitter.get_nodes_from_documents([d])
-                    all_nodes.extend([n for n in split_nodes if is_valid_text_content(n.get_content())])
-                else:
-                    all_nodes.append(TextNode(text=d.text, metadata=d.metadata))
+                all_nodes.append(TextNode(text=d.text, metadata=d.metadata))
 
     # 2. Structure-Aware XML Datagram Examples
     if xml_files:

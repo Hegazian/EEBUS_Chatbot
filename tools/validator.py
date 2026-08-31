@@ -8,22 +8,31 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
-import xmlschema
+
+try:
+    import xmlschema
+except ImportError:
+    xmlschema = None
 
 from core.config import BASE_DIR, EEBUS_DIR
 
-DATAGRAM_XSD_PATH = os.path.join(
-    EEBUS_DIR, "EEBus_SPINE_V1.3.0", "XSDs", "EEBus_SPINE_TS_Datagram.xsd"
-)
+_CANDIDATE_XSD_PATHS = [
+    os.path.join(EEBUS_DIR, "EEBus_SPINE_V1.3.0_Final_hp", "XSDs", "EEBus_SPINE_TS_Datagram.xsd"),
+    os.path.join(EEBUS_DIR, "EEBus_SPINE_V1.3.0", "XSDs", "EEBus_SPINE_TS_Datagram.xsd")
+]
+DATAGRAM_XSD_PATH = next((p for p in _CANDIDATE_XSD_PATHS if os.path.exists(p)), _CANDIDATE_XSD_PATHS[0])
 
-_SCHEMA_CACHE: Optional[xmlschema.XMLSchema] = None
+_SCHEMA_CACHE: Optional[Any] = None
 
 
-def get_datagram_schema() -> Optional[xmlschema.XMLSchema]:
+def get_datagram_schema() -> Optional[Any]:
     """Load and cache the SPINE Datagram XML Schema."""
     global _SCHEMA_CACHE
     if _SCHEMA_CACHE is not None:
         return _SCHEMA_CACHE
+
+    if xmlschema is None:
+        return None
 
     if os.path.exists(DATAGRAM_XSD_PATH):
         try:
@@ -125,29 +134,42 @@ def validate_spine_datagram(xml_content: str) -> Dict[str, Any]:
                     result["functions"].append(func_name)
 
     # 3. W3C Schema Validation via xmlschema
+    if xmlschema is None:
+        result["is_valid"] = False
+        result["error_type"] = "Dependency Missing"
+        result["error_message"] = "The 'xmlschema' library is not installed in the active environment. Please install it via 'pip install xmlschema'."
+        return result
+
     schema = get_datagram_schema()
     if not schema:
-        result["is_valid"] = True
-        result["error_message"] = "Notice: Datagram parsed well, but official XSD schema file was not found on disk."
+        result["is_valid"] = False
+        result["error_type"] = "Schema File Not Found"
+        result["error_message"] = f"Official XSD schema file was not found at {DATAGRAM_XSD_PATH}. Schema validation could not be completed."
         return result
 
     try:
         schema.validate(xml_content.strip())
         result["is_valid"] = True
-    except xmlschema.XMLSchemaValidationError as ve:
+    except Exception as ve:
         result["is_valid"] = False
-        result["error_type"] = "SPINE Schema Violation"
-        clean_reason = getattr(ve, "reason", str(ve))
-        result["error_message"] = f"{clean_reason}"
-        result["error_path"] = getattr(ve, "path", None)
-        result["line_number"] = getattr(ve, "sourceline", None)
+        if xmlschema is not None and isinstance(ve, getattr(xmlschema, "XMLSchemaValidationError", type(None))):
+            result["error_type"] = "SPINE Schema Violation"
+            clean_reason = getattr(ve, "reason", str(ve))
+            result["error_message"] = f"{clean_reason}"
+            result["error_path"] = getattr(ve, "path", None)
+            result["line_number"] = getattr(ve, "sourceline", None)
+        else:
+            result["error_type"] = "SPINE Schema Processing Error"
+            result["error_message"] = str(ve)
 
     return result
 
 
 def diagnose_datagram_error(xml_content: str, validation_result: Dict[str, Any], chat_engine) -> str:
     """
-    Use RAG ChatEngine to diagnose a validation failure and propose an exact fix.
+    Use RAG context from the knowledge base to diagnose a validation failure and propose an exact fix.
+    Retrieves authoritative schema definitions and specification clauses without polluting
+    the conversational chat history buffer.
     """
     if validation_result.get("is_valid"):
         return "✅ Datagram is fully compliant with EEBUS SPINE Specification TS 1.3.0. No corrections required."
@@ -157,7 +179,43 @@ def diagnose_datagram_error(xml_content: str, validation_result: Dict[str, Any],
     error_path = validation_result.get("error_path", "N/A")
     line_no = validation_result.get("line_number", "N/A")
 
-    prompt = f"""The following EEBUS SPINE Datagram failed schema validation:
+    # 1. Extract search query targets from validation result
+    funcs = validation_result.get("functions") or []
+    header = validation_result.get("header") or {}
+    cmd_class = header.get("cmdClassifier") or ""
+    
+    search_terms = []
+    if funcs:
+        search_terms.extend(funcs)
+    if error_path and error_path not in ["Root", "N/A"]:
+        clean_path_elem = str(error_path).rstrip("/").split("/")[-1].split(":")[-1]
+        if clean_path_elem:
+            search_terms.append(clean_path_elem)
+    if cmd_class:
+        search_terms.append(f"cmdClassifier {cmd_class}")
+    
+    query_str = f"SPINE Datagram schema {' '.join(search_terms)} {error_type}".strip()
+
+    # 2. Retrieve grounded schema context using retriever from chat_engine
+    context_chunks = []
+    retriever = getattr(chat_engine, "_retriever", None) or getattr(chat_engine, "retriever", None)
+    if retriever:
+        try:
+            retrieved_nodes = retriever.retrieve(query_str)
+            for node in retrieved_nodes[:3]:
+                snippet = node.node.get_content().strip() if hasattr(node, "node") else getattr(node, "text", "")
+                if snippet:
+                    meta = (node.node.metadata if hasattr(node, "node") else getattr(node, "metadata", {})) or {}
+                    fname = meta.get("filename", "SPINE Specification")
+                    context_chunks.append(f"--- Document: {fname} ---\n{snippet[:800]}")
+        except Exception as ret_err:
+            print(f"⚠️ Retrieval note during datagram diagnosis: {ret_err}")
+
+    context_section = ""
+    if context_chunks:
+        context_section = "OFFICIAL EEBUS SPECIFICATION CONTEXT:\n" + "\n\n".join(context_chunks) + "\n\n"
+
+    prompt = f"""{context_section}The following EEBUS SPINE Datagram failed schema validation:
 
 Validation Error: {error_type}
 Error Path: {error_path}
@@ -170,16 +228,16 @@ XML Payload:
 ```
 
 As the EEBUS Protocol Expert:
-1. Explain specifically what is wrong according to EEBUS SPINE TS 1.3.0 rules.
-2. Provide the corrected, fully compliant XML snippet.
+1. Ground your diagnosis in the provided EEBUS specification context and SPINE TS 1.3.0 rules.
+2. Explain specifically what is wrong (e.g. invalid enumeration, missing mandatory elements, incorrect tag names, or misplaced sequence).
+3. Provide the corrected, fully compliant XML snippet.
 """
     try:
         llm = getattr(chat_engine, "_llm", None) or getattr(chat_engine, "llm", None)
         if llm:
             response = llm.complete(prompt)
             return str(response)
-        response = chat_engine.chat(prompt)
-        return str(response)
+        return "⚠️ Diagnostic engine unavailable: isolated LLM completion interface not found on chat engine."
     except Exception as e:
         return f"⚠️ Diagnostic engine unavailable: {e}"
 

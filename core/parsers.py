@@ -7,9 +7,17 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional
-from pypdf import PdfReader
-from llama_index.core.readers.base import BaseReader
-from llama_index.core.schema import Document
+
+try:
+    from llama_index.core.readers.base import BaseReader
+    from llama_index.core.schema import Document
+except ImportError:
+    class BaseReader:
+        pass
+    class Document:
+        def __init__(self, text: str = "", metadata: Optional[Dict] = None):
+            self.text = text
+            self.metadata = metadata or {}
 
 
 # ─── Content Sanitization Helpers ──────────────────────────────────────────────
@@ -41,6 +49,7 @@ class PyPDFReader(BaseReader):
     def load_data(self, file_path: str, extra_info: Optional[Dict] = None) -> List[Document]:
         documents = []
         try:
+            from pypdf import PdfReader
             reader = PdfReader(file_path)
             for idx, page in enumerate(reader.pages):
                 page_text = page.extract_text() or ""
@@ -92,8 +101,11 @@ class StructureAwareXSDParser:
                     
                     xml_repr = ET.tostring(child, encoding="unicode").strip()
                     
-                    # Clean redundant root-level namespace prefixes for cleaner LLM context
-                    xml_repr = re.sub(r'\s+xmlns(:\w+)?="[^"]+"', '', xml_repr)
+                    # Ensure xmlns:xs is declared on root element of the structural unit if not present
+                    if 'xmlns:xs=' not in xml_repr and 'xs:' in xml_repr:
+                        xml_repr = re.sub(r'^(<[a-zA-Z0-9_:]+)', r'\1 xmlns:xs="http://www.w3.org/2001/XMLSchema"', xml_repr, count=1)
+                    if target_ns and 'xmlns:ns_p=' not in xml_repr and 'ns_p:' in xml_repr:
+                        xml_repr = re.sub(r'^(<[a-zA-Z0-9_:]+)', f'\\1 xmlns:ns_p="{target_ns}"', xml_repr, count=1)
                     
                     # Store self-contained structural definition without double wrapping
                     content = f"{header_doc}\n{xml_repr}"

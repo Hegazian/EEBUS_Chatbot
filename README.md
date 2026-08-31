@@ -93,12 +93,13 @@ EEBUS_Chatbot/
 │   ├── evaluate_rag.py                 # 25 ground-truth evaluation benchmark
 │   └── benchmark_report.md             # Auto-generated benchmark scorecard
 ├── EEBUS/                              # Official standard documentation corpus
-│   ├── EEBus_SHIP_TS_Specification_v1.1.0.pdf
-│   ├── SHIP_Protocol_Implementation_Guide.md
-│   ├── EEBus_SPINE_V1.3.0/
-│   │   ├── XSDs/                       # 75 SPINE W3C XML Schema files
-│   │   └── ExampleXMLs/                # Official SPINE datagram examples
-│   └── EEBus_UC_*/                     # 5 Use Case Specifications & Implementation Guides
+│   ├── EEBus_SHIP_TS_Specification_v1.1.0/
+│   ├── EEBus_SPINE_V1.3.0_Final_hp/
+│   │   └── XSDs/                       # 77 SPINE W3C XML Schema files
+│   ├── Implementation Guides/          # Official SHIP and SPINE Implementation Guides
+│   ├── Test Specifications/            # Conformance test suites
+│   ├── Test Cases/                     # High-level test specifications
+│   └── Use Cases/                      # E-Mobility, Grid, Inverter, HVAC Use Cases
 ├── eebus_ingest.py                     # CLI document ingestion pipeline
 ├── qabot.py                            # Production 4-tab Gradio engineering platform
 ├── requirements.txt                    # Project dependencies

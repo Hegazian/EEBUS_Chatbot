@@ -10,12 +10,10 @@ import chromadb
 from typing import Tuple, Optional
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.retrievers.bm25 import BM25Retriever
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.llms.gemini import Gemini
 
 from .config import (
     PERSIST_DIR, BM25_PERSIST_DIR, CACHE_FILE, COLLECTION_NAME,
@@ -45,6 +43,30 @@ def get_embedding_model():
     return _EMBED_MODEL
 
 
+# Backward compatibility alias
+init_embedding_model = get_embedding_model
+
+
+# ─── BM25 Singleton Cache ──────────────────────────────────────────────────────
+
+_CACHED_BM25_RETRIEVER = None
+
+
+def get_cached_bm25_retriever() -> Optional[BM25Retriever]:
+    """Lazily load and cache the persistent BM25Retriever in memory to avoid repeated disk reads."""
+    global _CACHED_BM25_RETRIEVER
+    if _CACHED_BM25_RETRIEVER is not None:
+        return _CACHED_BM25_RETRIEVER
+    if os.path.exists(BM25_PERSIST_DIR):
+        try:
+            _CACHED_BM25_RETRIEVER = BM25Retriever.from_persist_dir(BM25_PERSIST_DIR)
+            return _CACHED_BM25_RETRIEVER
+        except Exception as err:
+            print(f"⚠️ Note loading BM25 index ({err}).")
+            return None
+    return None
+
+
 # ─── Model Discovery & Persistent Caching ──────────────────────────────────────
 
 def select_best_model(api_key: Optional[str] = None) -> str:
@@ -53,27 +75,35 @@ def select_best_model(api_key: Optional[str] = None) -> str:
     if not key or key == "your_actual_gemini_api_key_here":
         return "models/gemini-1.5-flash"
 
+    import hashlib
+    key_hash = hashlib.sha256(key.encode()).hexdigest()[:12]
+
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 cache_data = json.load(f)
             cached_model = cache_data.get("selected_model")
             cached_time = cache_data.get("timestamp", 0)
-            if cached_model and (time.time() - cached_time < CACHE_TTL_HOURS * 3600):
+            cached_hash = cache_data.get("key_hash", "")
+            if cached_model and cached_hash == key_hash and (time.time() - cached_time < CACHE_TTL_HOURS * 3600):
                 return cached_model
         except Exception:
             pass
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=key)
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            import google.generativeai as genai
+            genai.configure(api_key=key)
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         
+        # Prioritize stable models with generous free-tier quotas (15 RPM / 1,500 RPD)
+        # Avoid floating aliases like 'gemini-flash-latest' which route to preview models with strict 5 RPM caps.
         priority = [
+            "models/gemini-1.5-flash",
             "models/gemini-2.0-flash",
             "models/gemini-1.5-flash-latest",
-            "models/gemini-1.5-flash",
-            "models/gemini-flash-latest",
             "models/gemini-1.5-pro",
             "models/gemini-pro"
         ]
@@ -85,16 +115,16 @@ def select_best_model(api_key: Optional[str] = None) -> str:
                 break
                 
         if not selected and available_models:
-            selected = available_models[0]
+            flash_candidates = [m for m in available_models if "1.5-flash" in m or "2.0-flash" in m]
+            selected = flash_candidates[0] if flash_candidates else available_models[0]
             
         final_model = selected or "models/gemini-1.5-flash"
         
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump({"selected_model": final_model, "timestamp": time.time()}, f, indent=2)
+            json.dump({"selected_model": final_model, "key_hash": key_hash, "timestamp": time.time()}, f, indent=2)
             
         return final_model
     except Exception as e:
-        print(f"⚠️ Dynamic model probing failed ({e}). Falling back to 'models/gemini-1.5-flash'.")
         return "models/gemini-1.5-flash"
 
 
@@ -132,6 +162,10 @@ def create_chat_engine(
         key = api_key or os.getenv("GOOGLE_API_KEY")
         if not key or key == "your_actual_gemini_api_key_here":
             raise ValueError("Google Gemini API Key is missing. Please set GOOGLE_API_KEY in .env or the UI.")
+        try:
+            from llama_index.llms.gemini import Gemini
+        except ImportError:
+            raise ImportError("llama-index-llms-gemini is not installed. Please install it via 'pip install llama-index-llms-gemini'.")
         model_name = select_best_model(key)
         session_llm = Gemini(model=model_name, temperature=temperature, max_tokens=4096, api_key=key)
     elif llm_provider == "ChatGPT (OpenAI)":
@@ -170,7 +204,7 @@ def create_chat_engine(
             target_comp = "UseCase"
 
     # Build hybrid retriever (Vector + BM25)
-    fetch_k = max(int(top_k) * 2, 14)
+    fetch_k = max(int(top_k) * 3, 24)
     filters = None
     if target_comp:
         try:
@@ -181,13 +215,9 @@ def create_chat_engine(
 
     vector_retriever = index.as_retriever(similarity_top_k=fetch_k, filters=filters)
 
-    bm25_retriever = None
-    if os.path.exists(BM25_PERSIST_DIR):
-        try:
-            bm25_retriever = BM25Retriever.from_persist_dir(BM25_PERSIST_DIR)
-            bm25_retriever.similarity_top_k = max(fetch_k * 3, 30) if target_comp else fetch_k
-        except Exception as err:
-            print(f"⚠️ Note loading BM25 index ({err}). Continuing with vector retriever.")
+    bm25_retriever = get_cached_bm25_retriever()
+    if bm25_retriever is not None:
+        bm25_retriever.similarity_top_k = max(fetch_k * 2, 40) if target_comp else fetch_k
 
     hybrid_retriever = EEBUSHybridRetriever(
         vector_retriever=vector_retriever,
@@ -196,10 +226,33 @@ def create_chat_engine(
         candidate_k=fetch_k
     )
 
-    # Cross-Encoder Reranker postprocessor
+    # Cross-Encoder Reranker postprocessor with CPU Latency Safeguards
     node_postprocessors = []
     if use_reranker:
         try:
+            import torch
+            # Optimize PyTorch CPU intra-op thread parallelism to reduce evaluation latency
+            num_threads = min(4, max(1, (os.cpu_count() or 4) // 2))
+            if torch.get_num_threads() != num_threads:
+                torch.set_num_threads(num_threads)
+        except Exception:
+            pass
+
+        try:
+            from llama_index.core.postprocessor import SentenceTransformerRerank
+            from llama_index.core.postprocessor.types import BaseNodePostprocessor
+
+            class AdaptiveCandidateTrimmer(BaseNodePostprocessor):
+                """Bound the candidate pool fed to Cross-Encoder to preserve interactive latency on CPU."""
+                max_rerank_pool: int = 12
+
+                def _postprocess_nodes(self, nodes, query_bundle=None):
+                    return nodes[:self.max_rerank_pool]
+
+            # 1. First trim candidate pool to top 12 to bound CPU cross-encoder runtime
+            node_postprocessors.append(AdaptiveCandidateTrimmer(max_rerank_pool=max(int(top_k) * 2, 12)))
+
+            # 2. Re-rank top 12 candidates using Cross-Encoder neural scoring
             node_postprocessors.append(
                 SentenceTransformerRerank(
                     model=RERANKER_MODEL,
